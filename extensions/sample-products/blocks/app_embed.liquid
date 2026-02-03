@@ -1,0 +1,33 @@
+{% if product %}
+  <div class="sample-request-section">
+    <button
+      type="button"
+      class="button button--secondary js-sample-btn button--full-width"
+      data-sample-handle="{{ product.handle }}"
+      data-variant-id="{{ product.selected_or_first_available_variant.id }}"
+    >
+      {{ section.settings.button_text | default: 'Request Sample' }}
+    </button>
+
+    {% if section.settings.helper_text != blank %}
+      <p class="sample-helper-text">
+        {{ section.settings.helper_text }}
+      </p>
+    {% endif %}
+  </div>
+{% endif %}
+{% schema %}
+{
+  "name": "Sample Product Button",
+  "target":"section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button text",
+      "default": "Request Sample"
+    }
+  ],
+
+}
+{% endschema %}

@@ -1,0 +1,46 @@
+.container {
+    width: 50%;
+    margin: 0 auto;
+    text-align: center;
+  }
+  
+  h1 {
+    font-size: 36px;
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+  
+  .h-37{
+    height:22vh
+  }
+  
+  label {
+    color:#000;
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  
+  input[type=file] {
+    margin-bottom: 10px;
+  }
+  
+  
+  a {
+    text-decoration: none;
+  }
+  
+  #show-message {
+    background-color: #d4edda;
+    padding: 0.75rem 1.25rem;
+    width: 93%;
+    color: #155724;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+  }
+  
+  #file{
+    margin-left: 91px;
+  }

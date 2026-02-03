@@ -59,3 +59,78 @@ model StoreSetting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model SampleProduct {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  shop               String
+  productId          String  
+  enabled            Boolean  @default(true)
+
+  samplePrice        Int     
+  maxPerOrder        Int      @default(1)
+  maxPerCustomer     Int      @default(1)
+
+  allowedVariantIds  Int[]    
+  cooldownDays       Int      @default(0)
+
+  buttonText         String   @default("Get Sample")
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([shop, productId])
+  @@index([shop])
+  @@index([productId])
+}
+
+
+model SampleCustomer {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  shop          String   
+  email         String
+  name          String?
+
+  totalSamples  Int      @default(0)
+  blocked       Boolean  @default(false)
+
+  lastSampleAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders        SampleOrder[]
+
+  @@unique([shop, email])
+  @@index([email])
+  @@index([shop])
+}
+
+model SampleOrder {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+
+  shop          String
+  email         String
+
+  draftOrderId  String
+  variantIds    Int[]
+  sampleCount   Int
+
+  status        SampleOrderStatus @default(CREATED)
+
+  createdAt     DateTime @default(now())
+
+  customer      SampleCustomer? @relation(fields: [customerId], references: [id])
+  customerId    String? @db.ObjectId
+
+  @@index([shop])
+  @@index([email])
+  @@index([draftOrderId])
+}
+
+enum SampleOrderStatus {
+  CREATED
+  COMPLETED
+  CANCELLED
+  BLOCKED
+}
