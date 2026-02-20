@@ -9,6 +9,7 @@ import {
   Spinner,
   Box,
   Pagination,
+  EmptyState,
 } from "@shopify/polaris";
 
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -118,11 +119,16 @@ export default function CustomersPage() {
         <Layout.Section>
           <Card>
             {customers.length === 0 ? (
-              <Box padding="400">
-                <Text as="p" tone="subdued">
-                  No customers found.
-                </Text>
-              </Box>
+              <EmptyState
+                heading="No sample customers yet"
+                image="https://cdn.shopify.com/s/files/1/0757/9955/files/empty-state.svg"
+              >
+                <p>
+                  Customers who request samples will appear here. Once they
+                  start ordering sample products, you will see their activity
+                  and status.
+                </p>
+              </EmptyState>
             ) : (
               <IndexTable
                 resourceName={{ singular: "customer", plural: "customers" }}

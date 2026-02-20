@@ -18,6 +18,7 @@ import {
   Select,
   Icon,
   Tooltip,
+  EmptyState,
 } from "@shopify/polaris";
 import { useRouter } from "next/navigation";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -304,11 +305,19 @@ export default function CustomProductsPage() {
         <Layout.Section>
           <Card>
             {customProducts.length === 0 ? (
-              <Box padding="400">
-                <Text as="p" tone="subdued">
-                  No products found.
-                </Text>
-              </Box>
+              <EmptyState
+                heading="No sample products yet"
+                action={{
+                  content: "Add your first product",
+                  onAction: () => router.push("/products/create"),
+                }}
+                image="https://cdn.shopify.com/s/files/1/0757/9955/files/empty-state.svg"
+              >
+                <p>
+                  Add products to enable sample pricing. Once added, you can
+                  manage pricing types and discounts directly from here.
+                </p>
+              </EmptyState>
             ) : (
               <IndexTable
                 resourceName={{
