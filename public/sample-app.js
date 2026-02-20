@@ -29,7 +29,7 @@ document.addEventListener("click", function (e) {
 
 const SAMPLE_LIMIT = 3;
 
-const APP_BASE = "https://cloth-anniversary-tagged-incidence.trycloudflare.com";
+const APP_BASE = "https://sample-app-two-sandy.vercel.app";
 const API_BASE = `${APP_BASE}/api/sample`;
 const CART_KEY = "sample_cart";
 
