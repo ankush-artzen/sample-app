@@ -1,1119 +1,1044 @@
+// "use client";
+
+// import {
+//   Page,
+//   Card,
+//   Button,
+//   Layout,
+//   BlockStack,
+//   InlineStack,
+//   Text,
+//   Box,
+//   Badge,
+//   TextField,
+//   Modal,
+//   Spinner,
+//   Toast,
+//   Frame,
+//   List,
+//   Divider,
+// } from "@shopify/polaris";
+// import { useState, useEffect, useCallback } from "react";
+// import { useAppBridge } from "@shopify/app-bridge-react";
+
+// type SelectedProduct = {
+//   id: string;
+//   title: string;
+//   image?: string;
+// };
+
+// type Variant = {
+//   id: string;
+//   title: string;
+//   price: string;
+// };
+
+// export default function ProductSampleSettings() {
+//   const [toastActive, setToastActive] = useState(false);
+//   const [toastContent, setToastContent] = useState("");
+//   const [toastError, setToastError] = useState(false);
+//   const dismissToast = () => setToastActive(false);
+//   const app = useAppBridge();
+
+//   const showToast = (msg: string, isError = false) => {
+//     setToastContent(msg);
+//     setToastError(isError);
+//     setToastActive(true);
+//   };
+//   const normalizeProductId = (gid: string) =>
+//     gid.replace("gid://shopify/Product/", "");
+
+//   const normalizeVariantId = (gid: string) =>
+//     gid.replace("gid://shopify/ProductVariant/", "");
+//   const [shop, setShop] = useState<string>("");
+
+//   const [customPricesCount, setCustomPricesCount] = useState(0);
+//   const [loading, setLoading] = useState(true);
+//   const [modalActive, setModalActive] = useState(false);
+//   const [selectedProduct, setSelectedProduct] =
+//     useState<SelectedProduct | null>(null);
+//   const [variants, setVariants] = useState<Variant[]>([]);
+//   const [customPrice, setCustomPrice] = useState("");
+//   const [saving, setSaving] = useState(false);
+
+//   useEffect(() => {
+//     if (!app) return;
+
+//     const shopFromConfig = (app as any)?.config?.shop;
+
+//     if (shopFromConfig) {
+//       setShop(shopFromConfig);
+//     } else if (typeof window !== "undefined") {
+//       setShop(window.location.hostname);
+//     }
+
+//     setLoading(false);
+//   }, [app]);
+
+//   const selectSampleProduct = async () => {
+//     try {
+//       if (!(window as any).shopify?.resourcePicker) {
+//         showToast("Shopify resource picker not available", true);
+//         return;
+//       }
+
+//       const pickerResult = await (window as any).shopify.resourcePicker({
+//         type: "product",
+//         multiple: false,
+//       });
+
+//       const product = pickerResult?.selection?.[0];
+//       if (!product) return;
+
+//       const parsedProduct = {
+//         id: normalizeProductId(product.id),
+//         title: product.title,
+//         image: product.images?.[0]?.originalSrc,
+//       };
+
+//       setSelectedProduct(parsedProduct);
+
+//       if (product.variants) {
+//         const parsedVariants = product.variants.map((v: any) => ({
+//           id: normalizeVariantId(v.id),
+//           title: v.title,
+//           price: v.price,
+//         }));
+
+//         setVariants(parsedVariants);
+//       } else {
+//         setVariants([]);
+//       }
+
+//       setModalActive(true);
+//     } catch (error) {
+//       console.error(error);
+//       showToast("Failed to select product", true);
+//     }
+//   };
+
+//   const handleSaveCustomPrice = useCallback(async () => {
+//     if (!selectedProduct) {
+//       showToast("No product selected", true);
+//       return;
+//     }
+
+//     if (
+//       !customPrice ||
+//       isNaN(Number(customPrice)) ||
+//       Number(customPrice) <= 0
+//     ) {
+//       showToast("Please enter a valid price", true);
+//       return;
+//     }
+
+//     try {
+//       setSaving(true);
+
+//       const payload = {
+//         productId: selectedProduct.id,
+//         title: selectedProduct.title,
+//         image: selectedProduct.image,
+//         customPrice: Number(customPrice),
+//         variants: variants.map((v) => ({ id: v.id, title: v.title })),
+//       };
+
+//       const response = await fetch(`/api/settings/custom?shop=${shop}`, {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify(payload),
+//       });
+
+//       const data = await response.json();
+
+//       if (data.success) {
+//         showToast("Custom price saved successfully");
+//         setModalActive(false);
+//         setSelectedProduct(null);
+//         setCustomPrice("");
+
+//         if (data.alreadyExists) {
+//           showToast("This price was already set");
+//         }
+//       } else {
+//         showToast(data.error || "Failed to save custom price", true);
+//       }
+//     } catch (error) {
+//       console.error("Error saving custom price:", error);
+//       showToast("Failed to save custom price", true);
+//     } finally {
+//       setSaving(false);
+//     }
+//   }, [selectedProduct, customPrice, variants, shop]);
+
+//   if (!shop) {
+//     return (
+//       <Frame>
+//         <Page title="Sample Product Settings">
+//           <Layout>
+//             <Layout.Section>
+//               <Card>
+//                 <Box padding="400">
+//                   <Text as="p" alignment="center">
+//                     Loading...
+//                   </Text>
+//                 </Box>
+//               </Card>
+//             </Layout.Section>
+//           </Layout>
+//         </Page>
+//       </Frame>
+//     );
+//   }
+
+//   if (loading) {
+//     return (
+//       <Frame>
+//         <Page title="Sample Product Settings">
+//           <Layout>
+//             <Layout.Section>
+//               <Card>
+//                 <Box padding="400">
+//                   <Text as="p" alignment="center">
+//                     Loading...
+//                   </Text>
+//                 </Box>
+//               </Card>
+//             </Layout.Section>
+//           </Layout>
+//         </Page>
+//       </Frame>
+//     );
+//   }
+
+//   return (
+//     <Frame>
+//       <Page title="Sample Product Settings">
+//         <Layout>
+//           {/* MAIN SECTION */}
+//           <Layout.Section>
+//             <BlockStack gap="400">
+//               <Card>
+//                 <BlockStack gap="300">
+//                   <Text as="h2" variant="headingMd">
+//                     Custom Sample Prices
+//                   </Text>
+
+//                   <List type="bullet">
+//                     <List.Item>Select the Product You want to set price</List.Item>
+//                     <List.Item>Manually set sample price</List.Item>
+//                   </List>
+//                   <Button
+//                     variant="primary"
+//                     tone="success"
+//                     onClick={selectSampleProduct}
+//                   >
+//                     {selectedProduct ? "Change Product" : "Add Custom Price"}
+//                   </Button>
+//                 </BlockStack>
+//               </Card>
+
+//               {/* PRODUCT CONFIGURATION AREA */}
+//               {selectedProduct && (
+//                 <Card>
+//                   <BlockStack gap="400">
+//                     {/* Product Info */}
+//                     <InlineStack gap="300" align="start">
+//                       {selectedProduct.image && (
+//                         <Box
+//                           width="70px"
+//                           borderRadius="200"
+//                           overflowX="hidden"
+//                           overflowY="hidden"
+//                         >
+//                           <img
+//                             src={selectedProduct.image}
+//                             alt={selectedProduct.title}
+//                             style={{
+//                               width: "100%",
+//                               height: "70px",
+//                               objectFit: "cover",
+//                             }}
+//                           />
+//                         </Box>
+//                       )}
+
+//                       <BlockStack gap="100">
+//                         <Text as="h3" variant="headingSm">
+//                           {selectedProduct.title}
+//                         </Text>
+//                         <Text as="p" variant="bodySm" tone="subdued">
+//                           {variants.length}{" "}
+//                           {variants.length === 1 ? "variant" : "variants"}
+//                         </Text>
+//                       </BlockStack>
+//                     </InlineStack>
+
+//                     <Divider />
+
+//                     {/* Price Field */}
+//                     <TextField
+//                       label="Custom Sample Price"
+//                       type="number"
+//                       value={customPrice}
+//                       onChange={setCustomPrice}
+//                       // prefix="$"
+//                       autoComplete="off"
+//                       helpText="This price will override global settings"
+//                       disabled={saving}
+//                     />
+
+//                     {/* Variant Preview */}
+//                     {variants.length > 1 && (
+//                       <Box
+//                         background="bg-surface-secondary"
+//                         padding="300"
+//                         borderRadius="200"
+//                       >
+//                         <BlockStack gap="200">
+//                           <Text as="p" fontWeight="bold">
+//                             Applies to all variants:
+//                           </Text>
+
+//                           {variants.map((variant) => (
+//                             <InlineStack key={variant.id} align="space-between">
+//                               <Text as="p" variant="bodySm">
+//                                 {variant.title}
+//                               </Text>
+//                               <Text as="p" variant="bodySm" tone="subdued">
+//                                 Original: {variant.price}
+//                               </Text>
+//                             </InlineStack>
+//                           ))}
+//                         </BlockStack>
+//                       </Box>
+//                     )}
+
+//                     {/* Action Buttons */}
+//                     <InlineStack gap="200">
+//                       <Button
+//                         variant="primary"
+//                         loading={saving}
+//                         disabled={!customPrice || saving}
+//                         onClick={handleSaveCustomPrice}
+//                       >
+//                         Save Price
+//                       </Button>
+
+//                       <Button
+//                         tone="critical"
+//                         onClick={() => {
+//                           setSelectedProduct(null);
+//                           setCustomPrice("");
+//                         }}
+//                       >
+//                         Cancel
+//                       </Button>
+//                     </InlineStack>
+//                   </BlockStack>
+//                 </Card>
+//               )}
+//             </BlockStack>
+//           </Layout.Section>
+
+//           {/* SIDE GUIDE */}
+//           <Layout.Section variant="oneThird">
+//             <Card>
+//               <BlockStack gap="300">
+//                 <Text as="h2" variant="headingSm">
+//                   Quick Guide
+//                 </Text>
+
+//                 <Text as="p" variant="bodySm">
+//                   1. Click "Add Custom Price"
+//                 </Text>
+//                 <Text as="p" variant="bodySm">
+//                   2. Select a product
+//                 </Text>
+//                 <Text as="p" variant="bodySm">
+//                   3. Enter sample price and save
+//                 </Text>
+
+//                 <Box
+//                   background="bg-surface-secondary"
+//                   padding="300"
+//                   borderRadius="200"
+//                 >
+//                   <Text as="p" variant="bodySm" tone="subdued">
+//                     Custom prices override global settings.
+//                   </Text>
+//                 </Box>
+//               </BlockStack>
+//             </Card>
+//           </Layout.Section>
+//         </Layout>
+
+//         {toastActive && (
+//           <Toast
+//             content={toastContent}
+//             onDismiss={dismissToast}
+//             error={toastError}
+//           />
+//         )}
+//       </Page>
+//     </Frame>
+//   );
+// }
 "use client";
 
 import {
   Page,
   Card,
   Button,
-  Checkbox,
-  TextField,
   Layout,
+  BlockStack,
+  InlineStack,
+  Text,
+  Box,
+  Badge,
+  TextField,
+  Select,
+  Modal,
+  Spinner,
+  Toast,
+  Frame,
+  List,
+  Divider,
+  RadioButton,
+  ChoiceList,
 } from "@shopify/polaris";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 
+type SelectedProduct = {
+  id: string;
+  title: string;
+  image?: string;
+  originalPrice?: number;
+};
+
+type Variant = {
+  id: string;
+  title: string;
+  price: string;
+  selected?: boolean;
+};
+
+type PricingType = "FIXED" | "PERCENTAGE" | "CUSTOM";
+
 export default function ProductSampleSettings() {
-  const app = useAppBridge(); 
+  const [toastActive, setToastActive] = useState(false);
+  const [toastContent, setToastContent] = useState("");
+  const [toastError, setToastError] = useState(false);
+  const dismissToast = () => setToastActive(false);
+  const app = useAppBridge();
 
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [selectedSampleProduct, setSelectedSampleProduct] = useState<any>(null);
-  const [enabled, setEnabled] = useState(false);
-  const [limit, setLimit] = useState("1");
-  const [onePerCustomer, setOnePerCustomer] = useState(true);
-  const [loading, setLoading] = useState(false);
-
-  const showToast = (message: string, isError = false) => {
-    console.log(isError ? `❌ ${message}` : `✅ ${message}`);
+  const showToast = (msg: string, isError = false) => {
+    setToastContent(msg);
+    setToastError(isError);
+    setToastActive(true);
   };
 
-  const selectProduct = async () => {
-    const pickerResult = await window.shopify?.resourcePicker({
-      type: "product",
-      multiple: false,
-    });
+  const normalizeProductId = (gid: string) =>
+    gid.replace("gid://shopify/Product/", "");
 
-    const product = pickerResult?.selection?.[0];
-    if (!product) return showToast("No product selected", true);
+  const normalizeVariantId = (gid: string) =>
+    gid.replace("gid://shopify/ProductVariant/", "");
 
-    setSelectedProduct({
-      id: product.id.split("/").pop(),
-      title: product.title,
-    });
-  };
+  const [shop, setShop] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const selectSampleProduct = async () => {
-    const pickerResult = await window.shopify?.resourcePicker({
-      type: "product",
-      multiple: false,
-    });
+  // Product selection state
+  const [selectedProduct, setSelectedProduct] =
+    useState<SelectedProduct | null>(null);
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
+  const [applyToAllVariants, setApplyToAllVariants] = useState(true);
 
-    const product = pickerResult?.selection?.[0];
-    if (!product) return showToast("No sample product selected", true);
+  // Pricing state
+  const [pricingType, setPricingType] = useState<PricingType>("CUSTOM");
+  const [customPrice, setCustomPrice] = useState("");
+  const [fixedPrice, setFixedPrice] = useState("");
+  const [percentageOff, setPercentageOff] = useState("");
 
-    setSelectedSampleProduct({
-      id: product.id.split("/").pop(),
-      title: product.title,
-    });
-  };
+  // Settings ID (if editing existing)
+  const [settingsId, setSettingsId] = useState<string | undefined>();
 
-  const saveSettings = async () => {
-    if (!selectedProduct || !selectedSampleProduct) return;
+  useEffect(() => {
+    if (!app) return;
 
-    setLoading(true);
+    const shopFromConfig = (app as any)?.config?.shop;
 
-    const shop = app?.config?.shop;
-
-    const res = await fetch("/api/products/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        shop,
-        productId: selectedProduct.id,
-        sampleProductId: selectedSampleProduct.id,
-        enabled,
-        limit,
-        onePerCustomer,
-      }),
-    });
+    if (shopFromConfig) {
+      setShop(shopFromConfig);
+    } else if (typeof window !== "undefined") {
+      setShop(window.location.hostname);
+    }
 
     setLoading(false);
+  }, [app]);
 
-    res.ok
-      ? showToast("Settings saved successfully")
-      : showToast("Failed to save settings", true);
+  const selectSampleProduct = async () => {
+    try {
+      if (!(window as any).shopify?.resourcePicker) {
+        showToast("Shopify resource picker not available", true);
+        return;
+      }
+
+      const pickerResult = await (window as any).shopify.resourcePicker({
+        type: "product",
+        multiple: false,
+      });
+
+      const product = pickerResult?.selection?.[0];
+      if (!product) return;
+
+      const parsedProduct = {
+        id: normalizeProductId(product.id),
+        title: product.title,
+        image: product.images?.[0]?.originalSrc,
+        originalPrice: parseFloat(product.variants?.[0]?.price || "0"),
+      };
+
+      setSelectedProduct(parsedProduct);
+
+      if (product.variants) {
+        const parsedVariants = product.variants.map((v: any) => ({
+          id: normalizeVariantId(v.id),
+          title: v.title,
+          price: v.price,
+          selected: true,
+        }));
+
+        setVariants(parsedVariants);
+        setSelectedVariantIds(parsedVariants.map((v:any) => v.id));
+      } else {
+        setVariants([]);
+        setSelectedVariantIds([]);
+      }
+
+      // Reset form
+      setPricingType("CUSTOM");
+      setCustomPrice("");
+      setFixedPrice("");
+      setPercentageOff("");
+      setApplyToAllVariants(true);
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to select product", true);
+    }
   };
 
+  const handleVariantSelectionChange = (
+    variantId: string,
+    checked: boolean,
+  ) => {
+    if (checked) {
+      setSelectedVariantIds([...selectedVariantIds, variantId]);
+    } else {
+      setSelectedVariantIds(
+        selectedVariantIds.filter((id) => id !== variantId),
+      );
+    }
+    setApplyToAllVariants(false);
+  };
+
+  const handleSelectAllVariants = () => {
+    setSelectedVariantIds(variants.map((v) => v.id));
+    setApplyToAllVariants(true);
+  };
+
+  const handleSaveCustomPrice = useCallback(async () => {
+    if (!selectedProduct) {
+      showToast("No product selected", true);
+      return;
+    }
+
+    if (selectedVariantIds.length === 0) {
+      showToast("Please select at least one variant", true);
+      return;
+    }
+
+    // Validate based on pricing type
+    if (
+      pricingType === "CUSTOM" &&
+      (!customPrice || isNaN(Number(customPrice)) || Number(customPrice) <= 0)
+    ) {
+      showToast("Please enter a valid custom price", true);
+      return;
+    }
+
+    if (
+      pricingType === "FIXED" &&
+      (!fixedPrice || isNaN(Number(fixedPrice)) || Number(fixedPrice) <= 0)
+    ) {
+      showToast("Please enter a valid fixed price", true);
+      return;
+    }
+
+    if (
+      pricingType === "PERCENTAGE" &&
+      (!percentageOff ||
+        isNaN(Number(percentageOff)) ||
+        Number(percentageOff) <= 0 ||
+        Number(percentageOff) > 100)
+    ) {
+      showToast("Please enter a valid percentage (1-100)", true);
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      if (applyToAllVariants) {
+        const payload = {
+          productId: selectedProduct.id,
+          title: selectedProduct.title,
+          image: selectedProduct.image,
+          variants: variants.map((v) => ({
+            id: v.id,
+            title: v.title,
+            price: parseFloat(v.price),
+          })),
+          pricingType,
+          customPrice:
+            pricingType === "CUSTOM" ? Number(customPrice) : undefined,
+          fixedPrice: pricingType === "FIXED" ? Number(fixedPrice) : undefined,
+          percentageOff:
+            pricingType === "PERCENTAGE" ? Number(percentageOff) : undefined,
+          settingsId,
+        };
+
+        const response = await fetch(`/api/settings/custom?shop=${shop}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ data: payload }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showToast("Prices saved successfully");
+          resetForm();
+        } else {
+          showToast(data.error || "Failed to save prices", true);
+        }
+      } else {
+        const promises = selectedVariantIds.map((variantId) => {
+          const variant = variants.find((v) => v.id === variantId);
+          const payload = {
+            productId: selectedProduct.id,
+            variantId,
+            title: selectedProduct.title,
+            image: selectedProduct.image,
+            customPrice:
+              pricingType === "CUSTOM"
+                ? Number(customPrice)
+                : variant
+                  ? parseFloat(variant.price)
+                  : undefined,
+            pricingType,
+            fixedPrice:
+              pricingType === "FIXED" ? Number(fixedPrice) : undefined,
+            percentageOff:
+              pricingType === "PERCENTAGE" ? Number(percentageOff) : undefined,
+            settingsId,
+          };
+
+          return fetch(`/api/settings/custom?shop=${shop}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ data: payload }),
+          }).then((res) => res.json());
+        });
+
+        const results = await Promise.all(promises);
+        const allSuccessful = results.every((r) => r.success);
+
+        if (allSuccessful) {
+          showToast("Prices saved successfully");
+          resetForm();
+        } else {
+          showToast("Some variants failed to save", true);
+        }
+      }
+    } catch (error) {
+      console.error("Error saving custom price:", error);
+      showToast("Failed to save custom price", true);
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    selectedProduct,
+    variants,
+    selectedVariantIds,
+    pricingType,
+    customPrice,
+    fixedPrice,
+    percentageOff,
+    applyToAllVariants,
+    shop,
+    settingsId,
+  ]);
+
+  const resetForm = () => {
+    setSelectedProduct(null);
+    setVariants([]);
+    setSelectedVariantIds([]);
+    setCustomPrice("");
+    setFixedPrice("");
+    setPercentageOff("");
+    setPricingType("CUSTOM");
+    setApplyToAllVariants(true);
+  };
+
+  const pricingOptions = [
+    // { label: "Custom Price", value: "CUSTOM" },
+    { label: "Fixed Price", value: "FIXED" },
+    { label: "Percentage Off", value: "PERCENTAGE" },
+  ];
+
+  if (!shop || loading) {
+    return (
+      <Frame>
+        <Page title="Sample Product Settings">
+          <Layout>
+            <Layout.Section>
+              <Card>
+                <Box padding="400">
+                  <Text as="p" alignment="center">
+                    Loading...
+                  </Text>
+                </Box>
+              </Card>
+            </Layout.Section>
+          </Layout>
+        </Page>
+      </Frame>
+    );
+  }
+
   return (
-    <Page title="Sample Product Settings">
-      <Card>
+    <Frame>
+      <Page title="Sample Product Settings">
         <Layout>
+          {/* MAIN SECTION */}
           <Layout.Section>
-            <Button onClick={selectProduct}>
-              {selectedProduct ? selectedProduct.title : "Select Product"}
-            </Button>
+            <BlockStack gap="400">
+              <Card>
+                <BlockStack gap="300">
+                  <Text as="h2" variant="headingMd">
+                    Custom Sample Prices
+                  </Text>
+
+                  <List type="bullet">
+                    <List.Item>
+                      Select a product to set custom sample prices
+                    </List.Item>
+                    <List.Item>
+                      Choose pricing type: Custom, Fixed, or Percentage off
+                    </List.Item>
+                    <List.Item>
+                      Apply to all variants or select specific ones
+                    </List.Item>
+                  </List>
+
+                  <Button
+                    variant="primary"
+                    tone="success"
+                    onClick={selectSampleProduct}
+                  >
+                    {selectedProduct ? "Change Product" : "Add Product Set Manual Price"}
+                  </Button>
+                </BlockStack>
+              </Card>
+
+              {/* PRODUCT CONFIGURATION AREA */}
+              {selectedProduct && (
+                <Card>
+                  <BlockStack gap="400">
+                    {/* Product Info */}
+                    <InlineStack gap="300" align="start">
+                      {selectedProduct.image && (
+                        <Box
+                          width="70px"
+                          borderRadius="200"
+                          overflowX="hidden"
+                          overflowY="hidden"
+                        >
+                          <img
+                            src={selectedProduct.image}
+                            alt={selectedProduct.title}
+                            style={{
+                              width: "100%",
+                              height: "70px",
+                              objectFit: "cover",
+                            }}
+                          />
+                        </Box>
+                      )}
+
+                      <BlockStack gap="100">
+                        <Text as="h3" variant="headingSm">
+                          {selectedProduct.title}
+                        </Text>
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          {variants.length}{" "}
+                          {variants.length === 1 ? "variant" : "variants"}
+                        </Text>
+                      </BlockStack>
+                    </InlineStack>
+
+                    <Divider />
+
+                    {/* Pricing Type Selection */}
+                    <BlockStack gap="200">
+                      <Text as="h3" variant="headingSm">
+                        Pricing Type
+                      </Text>
+                      <ChoiceList
+                        title="Pricing type"
+                        titleHidden
+                        choices={pricingOptions}
+                        selected={[pricingType]}
+                        onChange={(value) =>
+                          setPricingType(value[0] as PricingType)
+                        }
+                      />
+                    </BlockStack>
+
+                    {/* Price Input Fields based on type */}
+                    {pricingType === "CUSTOM" && (
+                      <TextField
+                        label="Custom Sample Price"
+                        type="number"
+                        value={customPrice}
+                        onChange={setCustomPrice}
+                        prefix="$"
+                        autoComplete="off"
+                        helpText="Set a specific price for samples"
+                        disabled={saving}
+                      />
+                    )}
+
+                    {pricingType === "FIXED" && (
+                      <TextField
+                        label="Fixed Price"
+                        type="number"
+                        value={fixedPrice}
+                        onChange={setFixedPrice}
+                        prefix="$"
+                        autoComplete="off"
+                        helpText="Set a fixed price (overrides product price)"
+                        disabled={saving}
+                      />
+                    )}
+
+                    {pricingType === "PERCENTAGE" && (
+                      <TextField
+                        label="Percentage Off"
+                        type="number"
+                        value={percentageOff}
+                        onChange={setPercentageOff}
+                        suffix="%"
+                        autoComplete="off"
+                        helpText="Enter percentage discount (1-100)"
+                        disabled={saving}
+                      />
+                    )}
+
+                    <Divider />
+
+                    {/* Variant Selection */}
+                    <BlockStack gap="300">
+                      <InlineStack align="space-between">
+                        <Text as="h3" variant="headingSm">
+                          Apply to Variants
+                        </Text>
+                        <Button
+                          variant="plain"
+                          onClick={handleSelectAllVariants}
+                          disabled={
+                            selectedVariantIds.length === variants.length
+                          }
+                        >
+                          Select All
+                        </Button>
+                      </InlineStack>
+
+                      <Box
+                        background="bg-surface-secondary"
+                        padding="300"
+                        borderRadius="200"
+                      >
+                        <BlockStack gap="200">
+                          {variants.map((variant) => {
+                            const finalPrice =
+                              pricingType === "FIXED"
+                                ? fixedPrice
+                                : pricingType === "PERCENTAGE" && percentageOff
+                                  ? (
+                                      parseFloat(variant.price) *
+                                      (1 - parseFloat(percentageOff) / 100)
+                                    ).toFixed(2)
+                                  : customPrice || variant.price;
+
+                            return (
+                              <Box
+                                key={variant.id}
+                                padding="200"
+                                background={
+                                  selectedVariantIds.includes(variant.id)
+                                    ? "bg-surface"
+                                    : undefined
+                                }
+                                borderRadius="200"
+                              >
+                                <InlineStack align="space-between" gap="200">
+                                  <InlineStack gap="200">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedVariantIds.includes(
+                                        variant.id,
+                                      )}
+                                      onChange={(e) =>
+                                        handleVariantSelectionChange(
+                                          variant.id,
+                                          e.target.checked,
+                                        )
+                                      }
+                                      style={{ cursor: "pointer" }}
+                                    />
+                                    <BlockStack gap="100">
+                                      <Text as="p" variant="bodyMd">
+                                        {variant.title}
+                                      </Text>
+                                      <Text
+                                        as="p"
+                                        variant="bodySm"
+                                        tone="subdued"
+                                      >
+                                        Original: {variant.price}
+                                      </Text>
+                                    </BlockStack>
+                                  </InlineStack>
+
+                                  {selectedVariantIds.includes(variant.id) && (
+                                    <Text
+                                      as="p"
+                                      variant="bodyMd"
+                                      tone="success"
+                                    >
+                                      New: {finalPrice}
+                                    </Text>
+                                  )}
+                                </InlineStack>
+                              </Box>
+                            );
+                          })}
+                        </BlockStack>
+                      </Box>
+
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Selected: {selectedVariantIds.length} of{" "}
+                        {variants.length} variants
+                      </Text>
+                    </BlockStack>
+
+                    {/* Action Buttons */}
+                    <InlineStack gap="200">
+                      <Button
+                        variant="primary"
+                        loading={saving}
+                        disabled={
+                          saving ||
+                          selectedVariantIds.length === 0 ||
+                          (pricingType === "CUSTOM" && !customPrice) ||
+                          (pricingType === "FIXED" && !fixedPrice) ||
+                          (pricingType === "PERCENTAGE" && !percentageOff)
+                        }
+                        onClick={handleSaveCustomPrice}
+                      >
+                        Save{" "}
+                        {selectedVariantIds.length > 1
+                          ? `${selectedVariantIds.length} Prices`
+                          : "Price"}
+                      </Button>
+
+                      <Button tone="critical" onClick={resetForm}>
+                        Cancel
+                      </Button>
+                    </InlineStack>
+                  </BlockStack>
+                </Card>
+              )}
+            </BlockStack>
           </Layout.Section>
 
-          <Layout.Section>
-            <Checkbox
-              label="Enable sample for this product"
-              checked={enabled}
-              onChange={setEnabled}
-            />
-          </Layout.Section>
+          {/* SIDE GUIDE */}
+          <Layout.Section variant="oneThird">
+            <Card>
+              <BlockStack gap="300">
+                <Text as="h2" variant="headingSm">
+                  Quick Guide
+                </Text>
 
-          {enabled && (
-            <>
-              <Layout.Section>
-                <Button onClick={selectSampleProduct}>
-                  {selectedSampleProduct
-                    ? selectedSampleProduct.title
-                    : "Select Sample Product"}
-                </Button>
-              </Layout.Section>
+                <BlockStack gap="200">
+                  <Box
+                    padding="200"
+                    background="bg-surface-secondary"
+                    borderRadius="200"
+                  >
+                    <Text as="p" variant="bodySm" fontWeight="bold">
+                      Pricing Types:
+                    </Text>
+                    <List>
+                      <List.Item>Custom: Set any price</List.Item>
+                      <List.Item>Fixed: Override product price</List.Item>
+                      <List.Item>Percentage: % off original</List.Item>
+                    </List>
+                  </Box>
 
-              <Layout.Section>
-                <TextField
-                  label="Sample limit"
-                  type="number"
-                  value={limit}
-                  onChange={setLimit}
-                  autoComplete="off"
-                />
-              </Layout.Section>
+                  <Box
+                    padding="200"
+                    background="bg-surface-secondary"
+                    borderRadius="200"
+                  >
+                    <Text as="p" variant="bodySm">
+                      ✓ Select specific variants or apply to all
+                    </Text>
+                  </Box>
 
-              <Layout.Section>
-                <Checkbox
-                  label="Allow only one sample per customer"
-                  checked={onePerCustomer}
-                  onChange={setOnePerCustomer}
-                />
-              </Layout.Section>
-            </>
-          )}
-
-          <Layout.Section>
-            <Button
-              variant="primary"
-              loading={loading}
-              disabled={!enabled || !selectedProduct || !selectedSampleProduct}
-              onClick={saveSettings}
-            >
-              Save Settings
-            </Button>
+                  <Box
+                    padding="200"
+                    background="bg-surface-secondary"
+                    borderRadius="200"
+                  >
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Custom prices override global settings per variant
+                    </Text>
+                  </Box>
+                </BlockStack>
+              </BlockStack>
+            </Card>
           </Layout.Section>
         </Layout>
-      </Card>
-    </Page>
+
+        {toastActive && (
+          <Toast
+            content={toastContent}
+            onDismiss={dismissToast}
+            error={toastError}
+          />
+        )}
+      </Page>
+    </Frame>
   );
 }
-// "use client";
-
-// import {
-//   Page,
-//   Card,
-//   Button,
-//   Checkbox,
-//   TextField,
-//   Layout,
-//   DataTable,
-//   IndexTable,
-//   Text,
-//   Box,
-//   Badge,
-//   IndexFilters,
-//   useSetIndexFiltersMode,
-//   useIndexResourceState,
-//   LegacyCard,
-//   EmptyState,
-//   Spinner,
-//   Modal,
-// } from "@shopify/polaris";
-// import { useState, useEffect, useCallback } from "react";
-// import { useAppBridge } from "@shopify/app-bridge-react";
-
-// interface ProductSetting {
-//   id: string;
-//   productId: string;
-//   productTitle: string;
-//   sampleProductId: string;
-//   sampleProductTitle: string;
-//   enabled: boolean;
-//   limit: string;
-//   onePerCustomer: boolean;
-//   createdAt: string;
-// }
-
-// export default function ProductSampleSettings() {
-//   const app = useAppBridge();
-//   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-//   const [selectedSampleProduct, setSelectedSampleProduct] = useState<any>(null);
-//   const [enabled, setEnabled] = useState(false);
-//   const [limit, setLimit] = useState("1");
-//   const [onePerCustomer, setOnePerCustomer] = useState(true);
-//   const [loading, setLoading] = useState(false);
-//   const [enableAll, setEnableAll] = useState(false);
-//   const [settings, setSettings] = useState<ProductSetting[]>([]);
-//   const [loadingSettings, setLoadingSettings] = useState(true);
-//   const [bulkLoading, setBulkLoading] = useState(false);
-//   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-//   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-
-//   // Fetch existing settings
-//   const fetchSettings = useCallback(async () => {
-//     setLoadingSettings(true);
-//     try {
-//       const shop = app?.config?.shop;
-//       const res = await fetch(`/api/products/settings?shop=${shop}`);
-//       if (res.ok) {
-//         const data = await res.json();
-//         setSettings(data);
-//       }
-//     } catch (error) {
-//       console.error("Error fetching settings:", error);
-//     } finally {
-//       setLoadingSettings(false);
-//     }
-//   }, [app]);
-
-//   useEffect(() => {
-//     fetchSettings();
-//   }, [fetchSettings]);
-
-//   const showToast = (message: string, isError = false) => {
-//     console.log(isError ? `❌ ${message}` : `✅ ${message}`);
-//   };
-
-//   const selectProduct = async () => {
-//     const pickerResult = await window.shopify?.resourcePicker({
-//       type: "product",
-//       multiple: false,
-//     });
-
-//     const product = pickerResult?.selection?.[0];
-//     if (!product) return showToast("No product selected", true);
-
-//     setSelectedProduct({
-//       id: product.id.split("/").pop(),
-//       title: product.title,
-//     });
-//   };
-
-//   const selectSampleProduct = async () => {
-//     const pickerResult = await window.shopify?.resourcePicker({
-//       type: "product",
-//       multiple: false,
-//     });
-
-//     const product = pickerResult?.selection?.[0];
-//     if (!product) return showToast("No sample product selected", true);
-
-//     setSelectedSampleProduct({
-//       id: product.id.split("/").pop(),
-//       title: product.title,
-//     });
-//   };
-
-//   const saveSettings = async () => {
-//     if (!selectedProduct || !selectedSampleProduct) return;
-
-//     setLoading(true);
-
-//     const shop = app?.config?.shop;
-
-//     try {
-//       const res = await fetch("/api/products/create", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           shop,
-//           productId: selectedProduct.id,
-//           productTitle: selectedProduct.title,
-//           sampleProductId: selectedSampleProduct.id,
-//           sampleProductTitle: selectedSampleProduct.title,
-//           enabled,
-//           limit,
-//           onePerCustomer,
-//         }),
-//       });
-
-//       if (res.ok) {
-//         showToast("Settings saved successfully");
-//         // Reset form
-//         setSelectedProduct(null);
-//         setSelectedSampleProduct(null);
-//         setEnabled(false);
-//         setLimit("1");
-//         setOnePerCustomer(true);
-//         // Refresh settings list
-//         fetchSettings();
-//       } else {
-//         showToast("Failed to save settings", true);
-//       }
-//     } catch (error) {
-//       showToast("Error saving settings", true);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const toggleAllSettings = async () => {
-//     setBulkLoading(true);
-//     try {
-//       const shop = app?.config?.shop;
-//       const res = await fetch("/api/products/bulk-enable", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           shop,
-//           enable: enableAll,
-//         }),
-//       });
-
-//       if (res.ok) {
-//         showToast(`All settings ${enableAll ? "enabled" : "disabled"} successfully`);
-//         fetchSettings();
-//         setEnableAll(!enableAll);
-//       } else {
-//         showToast("Failed to update settings", true);
-//       }
-//     } catch (error) {
-//       showToast("Error updating settings", true);
-//     } finally {
-//       setBulkLoading(false);
-//     }
-//   };
-
-//   const toggleSetting = async (id: string, currentStatus: boolean) => {
-//     try {
-//       const shop = app?.config?.shop;
-//       const res = await fetch("/api/products/toggle", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           shop,
-//           id,
-//           enabled: !currentStatus,
-//         }),
-//       });
-
-//       if (res.ok) {
-//         showToast(`Setting ${!currentStatus ? "enabled" : "disabled"}`);
-//         fetchSettings();
-//       } else {
-//         showToast("Failed to update setting", true);
-//       }
-//     } catch (error) {
-//       showToast("Error updating setting", true);
-//     }
-//   };
-
-//   const deleteSetting = async (id: string) => {
-//     try {
-//       const shop = app?.config?.shop;
-//       const res = await fetch("/api/products/delete", {
-//         method: "DELETE",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           shop,
-//           id,
-//         }),
-//       });
-
-//       if (res.ok) {
-//         showToast("Setting deleted successfully");
-//         fetchSettings();
-//         setDeleteModalOpen(false);
-//         setItemToDelete(null);
-//       } else {
-//         showToast("Failed to delete setting", true);
-//       }
-//     } catch (error) {
-//       showToast("Error deleting setting", true);
-//     }
-//   };
-
-//   const handleDeleteClick = (id: string) => {
-//     setItemToDelete(id);
-//     setDeleteModalOpen(true);
-//   };
-
-//   const resourceName = {
-//     singular: "product setting",
-//     plural: "product settings",
-//   };
-
-//   const rowMarkup = settings.map(
-//     (setting, index) => (
-//       <IndexTable.Row
-//         id={setting.id}
-//         key={setting.id}
-//         position={index}
-//       >
-//         <IndexTable.Cell>
-//           <Text fontWeight="bold" as="span">
-//             {setting.productTitle}
-//           </Text>
-//         </IndexTable.Cell>
-//         <IndexTable.Cell>
-//           <Text as="span">{setting.sampleProductTitle}</Text>
-//         </IndexTable.Cell>
-//         <IndexTable.Cell>
-//           <Badge tone={setting.enabled ? "success" : "critical"}>
-//             {setting.enabled ? "Enabled" : "Disabled"}
-//           </Badge>
-//         </IndexTable.Cell>
-//         <IndexTable.Cell>
-//           <Text as="span">{setting.limit}</Text>
-//         </IndexTable.Cell>
-//         <IndexTable.Cell>
-//           <Badge tone={setting.onePerCustomer ? "success" : "critical"}>
-//             {setting.onePerCustomer ? "Yes" : "No"}
-//           </Badge>
-//         </IndexTable.Cell>
-//         <IndexTable.Cell>
-//           <Box >
-//             <Button
-//               size="slim"
-//               onClick={() => toggleSetting(setting.id, setting.enabled)}
-//             >
-//               {setting.enabled ? "Disable" : "Enable"}
-//             </Button>
-//             <Button
-//               size="slim"
-//               tone="critical"
-//               onClick={() => handleDeleteClick(setting.id)}
-//             >
-//               Delete
-//             </Button>
-//           </Box>
-//         </IndexTable.Cell>
-//       </IndexTable.Row>
-//     )
-//   );
-
-//   return (
-//     <Page
-//       title="Sample Product Settings"
-//       primaryAction={{
-//         content: "Save Settings",
-//         loading: loading,
-//         disabled: !enabled || !selectedProduct || !selectedSampleProduct,
-//         onAction: saveSettings,
-//       }}
-//       // secondaryActions={[
-//       //   {
-//       //     content: enableAll ? "Disable All" : "Enable All",
-//       //     loading: bulkLoading,
-//       //     onAction: toggleAllSettings,
-//       //   },
-//       // ]}
-//     >
-//       <Layout>
-//         {/* Add New Setting Card */}
-//         <Layout.Section>
-//           <Card>
-//             <Card>
-//               <Layout>
-//                 <Layout.Section>
-//                   <Button onClick={selectProduct}>
-//                     {selectedProduct ? selectedProduct.title : "Select Main Product"}
-//                   </Button>
-//                 </Layout.Section>
-
-//                 <Layout.Section>
-//                   <Checkbox
-//                     label="Enable sample for this product"
-//                     checked={enabled}
-//                     onChange={setEnabled}
-//                   />
-//                 </Layout.Section>
-
-//                 {enabled && (
-//                   <>
-//                     <Layout.Section>
-//                       <Button onClick={selectSampleProduct}>
-//                         {selectedSampleProduct
-//                           ? selectedSampleProduct.title
-//                           : "Select Sample Product"}
-//                       </Button>
-//                     </Layout.Section>
-
-//                     <Layout.Section>
-//                       <TextField
-//                         label="Sample limit per order"
-//                         type="number"
-//                         value={limit}
-//                         onChange={setLimit}
-//                         autoComplete="off"
-//                         min={1}
-//                         helpText="Maximum number of samples allowed per order"
-//                       />
-//                     </Layout.Section>
-
-//                     <Layout.Section>
-//                       <Checkbox
-//                         label="Allow only one sample per customer"
-//                         checked={onePerCustomer}
-//                         onChange={setOnePerCustomer}
-//                         helpText="Prevents customers from ordering multiple samples"
-//                       />
-//                     </Layout.Section>
-//                   </>
-//                 )}
-//               </Layout>
-//             </Card>
-//           </Card>
-//         </Layout.Section>
-
-//         {/* Existing Settings Card */}
-//         {/* <Layout.Section>
-//           <LegacyCard>
-//             <LegacyCard.Header title="Existing Settings">
-//               <Button
-//                 loading={loadingSettings}
-//                 onClick={fetchSettings}
-//               >
-//                 Refresh
-//               </Button>
-//             </LegacyCard.Header>
-//             <LegacyCard.Section>
-//               {loadingSettings ? (
-//                 <Box padding="4">
-//                   <Spinner size="large" />
-//                 </Box>
-//               ) : settings.length === 0 ? (
-//                 <EmptyState
-//                   heading="No product settings yet"
-//                   image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-//                 >
-//                   <p>Add your first product setting above.</p>
-//                 </EmptyState>
-//               ) : (
-//                 <IndexTable
-//                   resourceName={resourceName}
-//                   itemCount={settings.length}
-//                   headings={[
-//                     { title: "Product" },
-//                     { title: "Sample Product" },
-//                     { title: "Status" },
-//                     { title: "Limit" },
-//                     { title: "One per Customer" },
-//                     { title: "Actions" },
-//                   ]}
-//                   selectable={false}
-//                 >
-//                   {rowMarkup}
-//                 </IndexTable>
-//               )}
-//             </LegacyCard.Section>
-//           </LegacyCard>
-//         </Layout.Section> */}
-//       </Layout>
-
-//       {/* Delete Confirmation Modal */}
-//       <Modal
-//         open={deleteModalOpen}
-//         onClose={() => {
-//           setDeleteModalOpen(false);
-//           setItemToDelete(null);
-//         }}
-//         title="Delete Setting"
-//         primaryAction={{
-//           content: "Delete",
-//           onAction: () => itemToDelete && deleteSetting(itemToDelete),
-//         }}
-//         secondaryActions={[
-//           {
-//             content: "Cancel",
-//             onAction: () => {
-//               setDeleteModalOpen(false);
-//               setItemToDelete(null);
-//             },
-//           },
-//         ]}
-//       >
-//         <Modal.Section>
-//           <Text as="p">
-//             Are you sure you want to delete this product setting? This action cannot be undone.
-//           </Text>
-//         </Modal.Section>
-//       </Modal>
-//     </Page>
-//   );
-// }
-// "use client";
-
-// import {
-//   Page,
-//   Card,
-//   Button,
-//   Checkbox,
-//   TextField,
-//   Layout,
-//   DataTable,
-//   IndexTable,
-//   Text,
-//   Box,
-//   Badge,
-//   IndexFilters,
-//   useSetIndexFiltersMode,
-//   useIndexResourceState,
-//   LegacyCard,
-//   EmptyState,
-//   Spinner,
-//   Modal,
-//   Form,
-//   FormLayout,
-//   Select,
-//   Thumbnail,
-//   Toast,
-//   Frame,
-// } from "@shopify/polaris";
-// import { useState, useEffect, useCallback } from "react";
-// import { useAppBridge } from "@shopify/app-bridge-react";
-
-// interface ProductSetting {
-//   id: string;
-//   productId: string;
-//   productTitle: string;
-//   sampleProductId: string;
-//   sampleProductTitle: string;
-//   enabled: boolean;
-//   limit: string;
-//   onePerCustomer: boolean;
-//   createdAt: string;
-// }
-
-// export default function ProductSampleSettings() {
-//   const app = useAppBridge();
-//   const [selectedProduct, setSelectedProduct] = useState<any>(null);
-//   const [selectedSampleProduct, setSelectedSampleProduct] = useState<any>(null);
-//   const [enabled, setEnabled] = useState(false);
-//   const [limit, setLimit] = useState("1");
-//   const [onePerCustomer, setOnePerCustomer] = useState(true);
-//   const [loading, setLoading] = useState(false);
-//   const [enableAll, setEnableAll] = useState(false);
-//   const [settings, setSettings] = useState<ProductSetting[]>([]);
-//   const [loadingSettings, setLoadingSettings] = useState(true);
-//   const [bulkLoading, setBulkLoading] = useState(false);
-//   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-//   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-//   const [activeToast, setActiveToast] = useState<{
-//     show: boolean;
-//     content: string;
-//     error?: boolean;
-//   }>({
-//     show: false,
-//     content: "",
-//   });
-
-//   // Toast management
-//   const showToast = (message: string, isError = false) => {
-//     setActiveToast({
-//       show: true,
-//       content: message,
-//       error: isError,
-//     });
-//   };
-
-//   const toggleToastMarkup = activeToast.show ? (
-//     <Toast
-//       content={activeToast.content}
-//       error={activeToast.error}
-//       onDismiss={() => setActiveToast({ show: false, content: "" })}
-//     />
-//   ) : null;
-
-//   // Fetch existing settings
-//   const fetchSettings = useCallback(async () => {
-//     setLoadingSettings(true);
-//     try {
-//       const shop = app?.config?.shop;
-//       const res = await fetch(`/api/products/settings?shop=${shop}`);
-//       if (res.ok) {
-//         const data = await res.json();
-//         setSettings(data);
-//       } else {
-//         showToast("Failed to fetch settings", true);
-//       }
-//     } catch (error) {
-//       console.error("Error fetching settings:", error);
-//       showToast("Error fetching settings", true);
-//     } finally {
-//       setLoadingSettings(false);
-//     }
-//   }, [app]);
-
-//   useEffect(() => {
-//     fetchSettings();
-//   }, [fetchSettings]);
-
-//   const selectProduct = async () => {
-//     const pickerResult = await window.shopify?.resourcePicker({
-//       type: "product",
-//       multiple: false,
-//     });
-
-//     const product = pickerResult?.selection?.[0];
-//     if (!product) {
-//       showToast("No product selected", true);
-//       return;
-//     }
-
-//     setSelectedProduct({
-//       id: product.id.split("/").pop(),
-//       title: product.title,
-//       image: product.images?.[0]?.src,
-//     });
-//   };
-
-//   const selectSampleProduct = async () => {
-//     const pickerResult = await window.shopify?.resourcePicker({
-//       type: "product",
-//       multiple: false,
-//     });
-
-//     const product = pickerResult?.selection?.[0];
-//     if (!product) {
-//       showToast("No sample product selected", true);
-//       return;
-//     }
-
-//     setSelectedSampleProduct({
-//       id: product.id.split("/").pop(),
-//       title: product.title,
-//       image: product.images?.[0]?.src,
-//     });
-//   };
-
-//   const saveSettings = async () => {
-//     if (!selectedProduct || !selectedSampleProduct) {
-//       showToast("Please select both main and sample products", true);
-//       return;
-//     }
-
-//     setLoading(true);
-//     const shop = app?.config?.shop;
-
-//     try {
-//       const res = await fetch("/api/products/create", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           shop,
-//           productId: selectedProduct.id,
-//           productTitle: selectedProduct.title,
-//           sampleProductId: selectedSampleProduct.id,
-//           sampleProductTitle: selectedSampleProduct.title,
-//           enabled,
-//           limit,
-//           onePerCustomer,
-//         }),
-//       });
-
-//       const data = await res.json();
-
-//       if (res.ok) {
-//         showToast("Settings saved successfully");
-//         // Reset form
-//         setSelectedProduct(null);
-//         setSelectedSampleProduct(null);
-//         setEnabled(false);
-//         setLimit("1");
-//         setOnePerCustomer(true);
-//         // Refresh settings list
-//         fetchSettings();
-//       } else {
-//         showToast(data.error || "Failed to save settings", true);
-//       }
-//     } catch (error) {
-//       showToast("Error saving settings", true);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   // Bulk Enable for All Products
-//   const applyToAllProducts = async () => {
-//     if (!selectedSampleProduct) {
-//       showToast("Please select a sample product first", true);
-//       return;
-//     }
-
-//     setBulkLoading(true);
-//     try {
-//       const shop = app?.config?.shop;
-      
-//       const requestBody = {
-//         shop,
-//         enabled: true,
-//         enableAll: true,
-//         sampleProductId: selectedSampleProduct?.id,
-//         limit: parseInt(limit) || 1,
-//         onePerCustomer,
-//       };
-      
-//       console.log("Sending request body:", requestBody);
-      
-//       const res = await fetch("/api/products/bulk-enable", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify(requestBody),
-//       });
-
-//       const responseData = await res.json();
-//       console.log("API Response:", responseData);
-      
-//       if (res.ok) {
-//         showToast("Sample enabled for all products");
-//         fetchSettings();
-//         setEnableAll(false);
-//       } else {
-//         showToast(`Failed: ${responseData.error || "Unknown error"}`, true);
-//       }
-//     } catch (err) {
-//       console.error("Error:", err);
-//       showToast("Error enabling all products", true);
-//     } finally {
-//       setBulkLoading(false);
-//     }
-//   };
-
-//   const toggleSetting = async (id: string, currentStatus: boolean) => {
-//     try {
-//       const shop = app?.config?.shop;
-//       const res = await fetch("/api/products/toggle", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           shop,
-//           id,
-//           enabled: !currentStatus,
-//         }),
-//       });
-
-//       if (res.ok) {
-//         showToast(`Setting ${!currentStatus ? "enabled" : "disabled"}`);
-//         fetchSettings();
-//       } else {
-//         showToast("Failed to update setting", true);
-//       }
-//     } catch (error) {
-//       showToast("Error updating setting", true);
-//     }
-//   };
-
-//   const deleteSetting = async (id: string) => {
-//     try {
-//       const shop = app?.config?.shop;
-//       const res = await fetch("/api/products/delete", {
-//         method: "DELETE",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           shop,
-//           id,
-//         }),
-//       });
-
-//       if (res.ok) {
-//         showToast("Setting deleted successfully");
-//         fetchSettings();
-//         setDeleteModalOpen(false);
-//         setItemToDelete(null);
-//       } else {
-//         showToast("Failed to delete setting", true);
-//       }
-//     } catch (error) {
-//       showToast("Error deleting setting", true);
-//     }
-//   };
-
-//   const handleDeleteClick = (id: string) => {
-//     setItemToDelete(id);
-//     setDeleteModalOpen(true);
-//   };
-
-//   const resourceName = {
-//     singular: "product setting",
-//     plural: "product settings",
-//   };
-
-//   const rowMarkup = settings.map((setting, index) => (
-//     <IndexTable.Row id={setting.id} key={setting.id} position={index}>
-//       <IndexTable.Cell>
-//         <Text fontWeight="bold" as="span">
-//           {setting.productTitle}
-//         </Text>
-//       </IndexTable.Cell>
-//       <IndexTable.Cell>
-//         <Text as="span">{setting.sampleProductTitle}</Text>
-//       </IndexTable.Cell>
-//       <IndexTable.Cell>
-//         <Badge tone={setting.enabled ? "success" : "critical"}>
-//           {setting.enabled ? "Enabled" : "Disabled"}
-//         </Badge>
-//       </IndexTable.Cell>
-//       <IndexTable.Cell>
-//         <Text as="span">{setting.limit}</Text>
-//       </IndexTable.Cell>
-//       <IndexTable.Cell>
-//         <Badge tone={setting.onePerCustomer ? "success" : "critical"}>
-//           {setting.onePerCustomer ? "Yes" : "No"}
-//         </Badge>
-//       </IndexTable.Cell>
-//       <IndexTable.Cell>
-//         <Box >
-//           <Button
-//             size="slim"
-//             onClick={() => toggleSetting(setting.id, setting.enabled)}
-//           >
-//             {setting.enabled ? "Disable" : "Enable"}
-//           </Button>
-//           <Button
-//             size="slim"
-//             tone="critical"
-//             onClick={() => handleDeleteClick(setting.id)}
-//           >
-//             Delete
-//           </Button>
-//         </Box>
-//       </IndexTable.Cell>
-//     </IndexTable.Row>
-//   ));
-
-//   return (
-//     <Frame>
-//     <Layout>
-//       <Layout.Section>
-//         <Page
-//           title="Sample Product Settings"
-//           primaryAction={{
-//             content: "Save Settings",
-//             loading: loading,
-//             disabled: !selectedProduct || !selectedSampleProduct || !enabled,
-//             onAction: saveSettings,
-//           }}
-//         >
-//           <Layout>
-//             {/* Section 1: Bulk Settings */}
-//             <Layout.Section>
-//               <Card>
-//                 <Text as="p" variant="bodyMd">
-//                   Apply the same sample product settings to all products in your store.
-//                 </Text>
-//                 <FormLayout>
-//                   {/* Sample Product Selection */}
-//                   <FormLayout.Group>
-//                     <div>
-//                       <Text as="p" variant="bodyMd" fontWeight="bold">
-//                         Sample Product
-//                       </Text>
-//                       {selectedSampleProduct ? (
-//                         <Box padding="200" background="bg-surface" borderRadius="200" display="flex" alignItems="center" gap="2">
-//                           <Thumbnail
-//                             source={selectedSampleProduct.image || ""}
-//                             alt={selectedSampleProduct.title}
-//                           />
-//                           <Text as="p" variant="bodyMd">
-//                             {selectedSampleProduct.title}
-//                           </Text>
-//                           <Button onClick={selectSampleProduct} size="slim">
-//                             Change
-//                           </Button>
-//                         </Box>
-//                       ) : (
-//                         <Button onClick={selectSampleProduct} fullWidth>
-//                           Select Sample Product
-//                         </Button>
-//                       )}
-//                     </div>
-//                   </FormLayout.Group>
-
-//                   {/* Settings Configuration */}
-//                   <FormLayout.Group>
-//                     <TextField
-//                       label="Sample limit per order"
-//                       type="number"
-//                       value={limit}
-//                       onChange={setLimit}
-//                       autoComplete="off"
-//                       min={1}
-//                       helpText="Maximum number of samples allowed per order"
-//                     />
-//                   </FormLayout.Group>
-
-//                   <FormLayout.Group>
-//                     <Checkbox
-//                       label="Allow only one sample per customer"
-//                       checked={onePerCustomer}
-//                       onChange={setOnePerCustomer}
-//                       helpText="Prevents customers from ordering multiple samples"
-//                     />
-//                   </FormLayout.Group>
-
-//                   {/* Apply to All Button */}
-//                   <FormLayout.Group>
-//                     <Button
-//                       variant="primary"  
-//                       loading={bulkLoading}
-//                       onClick={applyToAllProducts}
-//                       disabled={!selectedSampleProduct}
-//                       fullWidth
-//                     >
-//                       Apply to All Products
-//                     </Button>
-//                   </FormLayout.Group>
-//                 </FormLayout>
-//               </Card>
-//             </Layout.Section>
-
-//             {/* Section 2: Single Product Settings */}
-//             <Layout.Section>
-//               <Card>
-//                 <FormLayout>
-//                   {/* Main Product Selection */}
-//                   <FormLayout.Group>
-//                     <div>
-//                       <Text as="p" variant="bodyMd" fontWeight="bold">
-//                         Main Product
-//                       </Text>
-//                       {selectedProduct ? (
-//                         <Box padding="200" background="bg-surface" borderRadius="200" display="flex" alignItems="center" gap="2">
-//                           <Thumbnail
-//                             source={selectedProduct.image || ""}
-//                             alt={selectedProduct.title}
-//                           />
-//                           <Text as="p" variant="bodyMd">
-//                             {selectedProduct.title}
-//                           </Text>
-//                           <Button onClick={selectProduct} size="slim">
-//                             Change
-//                           </Button>
-//                         </Box>
-//                       ) : (
-//                         <Button onClick={selectProduct} fullWidth>
-//                           Select Main Product
-//                         </Button>
-//                       )}
-//                     </div>
-//                   </FormLayout.Group>
-
-//                   {/* Enable Checkbox */}
-//                   <FormLayout.Group>
-//                     <Checkbox
-//                       label="Enable sample for this product"
-//                       checked={enabled}
-//                       onChange={setEnabled}
-//                     />
-//                   </FormLayout.Group>
-
-//                   {/* Sample Product Selection (for single product) */}
-//                   {enabled && (
-//                     <FormLayout.Group>
-//                       <div>
-//                         <Text as="p" variant="bodyMd" fontWeight="bold">
-//                           Sample Product
-//                         </Text>
-//                         {selectedSampleProduct ? (
-//                           <Box padding="200" background="bg-surface" borderRadius="200" >
-//                             <Thumbnail
-//                               source={selectedSampleProduct.image || ""}
-//                               alt={selectedSampleProduct.title}
-//                             />
-//                             <Text as="p" variant="bodyMd">
-//                               {selectedSampleProduct.title}
-//                             </Text>
-//                             <Button onClick={selectSampleProduct} size="slim">
-//                               Change
-//                             </Button>
-//                           </Box>
-//                         ) : (
-//                           <Button onClick={selectSampleProduct} fullWidth>
-//                             Select Sample Product
-//                           </Button>
-//                         )}
-//                       </div>
-//                     </FormLayout.Group>
-//                   )}
-//                 </FormLayout>
-//               </Card>
-//             </Layout.Section>
-
-        
-//           </Layout>
-
-//           {/* Delete Confirmation Modal */}
-//           <Modal
-//             open={deleteModalOpen}
-//             onClose={() => {
-//               setDeleteModalOpen(false);
-//               setItemToDelete(null);
-//             }}
-//             title="Delete Setting"
-//             primaryAction={{
-//               content: "Delete",
-//               onAction: () => itemToDelete && deleteSetting(itemToDelete),
-//               destructive: true,
-//             }}
-//             secondaryActions={[
-//               {
-//                 content: "Cancel",
-//                 onAction: () => {
-//                   setDeleteModalOpen(false);
-//                   setItemToDelete(null);
-//                 },
-//               },
-//             ]}
-//           >
-//             <Modal.Section>
-//               <Text as="p">
-//                 Are you sure you want to delete this product setting? This action cannot be undone.
-//               </Text>
-//             </Modal.Section>
-//           </Modal>
-//         </Page>
-//         {toggleToastMarkup}
-//       </Layout.Section>
-//     </Layout>
-//     </Frame>
-//   );
-// }

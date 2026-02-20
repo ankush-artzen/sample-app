@@ -1,108 +1,69 @@
 "use client";
-
-import React, { useState, useEffect, useCallback } from "react";
 import {
   Page,
-  Card,
-  IndexTable,
-  TextField,
-  Button,
-  Banner,
-  Badge,
-  EmptyState,
-  Select,
-  BlockStack,
-  InlineStack,
   Layout,
+  Card,
   Text,
+  IndexTable,
+  Badge,
+  Spinner,
   Box,
-  Loading,
-  useIndexResourceState,
+  Button,
+  TextField,
+  InlineStack,
+  Modal,
+  BlockStack,
+  Thumbnail,
+  Pagination,
+  Select,
+  Icon,
+  Tooltip,
 } from "@shopify/polaris";
-import { SkeletonPage, SkeletonBodyText } from "@shopify/polaris";
-
+import { useRouter } from "next/navigation";
 import { useAppBridge } from "@shopify/app-bridge-react";
- const EMPTY_STATE_IMAGE =
-  "https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png";
-/* ----------------------------------
-   Type Definitions
------------------------------------ */
-type SampleSettings = {
-  enabled: boolean;
-  sampleProductId: string;
-  limit: number;
-  onePerCustomer: boolean;
-};
+import { useEffect, useState } from "react";
+import { EditIcon, DeleteIcon } from "@shopify/polaris-icons";
+import DeleteConfirmationModal from "../components/deleteConfirm";
 
-type ApiProduct = {
+type SampleProduct = {
   id: string;
   title: string;
-  status: string;
-  settings: SampleSettings | null;
+  image: string;
+  productId: string;
+  percentageOff: number;
+  fixedPrice: number;
+  variantId: string;
+  originalProductPrice: number;
+  price: number;
+  shop: string;
+  createdAt: string;
 };
 
-type ApiResponse = {
-  success: boolean;
-  count: number;
-  products: ApiProduct[];
-  error?: string;
-};
-
-/* ----------------------------------
-   Status Badge Component
------------------------------------ */
-const StatusBadge = ({ status }: { status: string }) => {
-  const config = (() => {
-    switch (status) {
-      case "ACTIVE":
-        return { label: "Active", tone: "success" as const };
-      case "DRAFT":
-        return { label: "Draft", tone: "warning" as const };
-      case "ARCHIVED":
-        return { label: "Archived", tone: "critical" as const };
-      default:
-        return { label: status, tone: "subdued" as const };
-    }
-  })();
-
-  return <Badge>{config.label}</Badge>;
-};
-
-/* ----------------------------------
-   Settings Badge Component
------------------------------------ */
-const SettingsBadge = ({ settings }: { settings: SampleSettings | null }) => {
-  if (!settings) return <Badge tone="info">No Settings</Badge>;
-
-  return (
-    <BlockStack gap="200">
-      <InlineStack gap="200">
-        <Badge tone={settings.enabled ? "success" : "info"}>
-          {settings.enabled ? "Enabled" : "Disabled"}
-        </Badge>
-        {/* {settings.onePerCustomer && <Badge tone="info">One Per Customer</Badge>} */}
-      </InlineStack>
-      {/* <Text as="p" variant="bodySm" tone="subdued">
-        Limit: {settings.limit} • Product ID:{" "}
-        {settings.sampleProductId.slice(0, 8)}…
-      </Text> */}
-    </BlockStack>
-  );
-};
-
-/* ----------------------------------
-   Main Component
------------------------------------ */
-export default function ProductsWithSampleSettings() {
+export default function CustomProductsPage() {
   const app = useAppBridge();
+  const router = useRouter();
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
+  const limit = 10;
+  const [deleteProduct, setDeleteProduct] = useState<SampleProduct | null>(
+    null,
+  );
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [shop, setShop] = useState<string | null>(null);
-  const [products, setProducts] = useState<ApiProduct[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<ApiProduct[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [customProducts, setcustomProducts] = useState<SampleProduct[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [pricingType, setPricingType] = useState<
+    "CUSTOM" | "FIXED" | "PERCENTAGE"
+  >("CUSTOM");
+  // Modal states
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<SampleProduct | null>(
+    null,
+  );
+  const [priceInput, setPriceInput] = useState("");
+  const [updatingPrice, setUpdatingPrice] = useState(false);
 
   useEffect(() => {
     if (!app) return;
@@ -113,249 +74,543 @@ export default function ProductsWithSampleSettings() {
       setShop(shopFromConfig);
       setError(null);
     } else {
-      setShop(null);
       setError("Unable to retrieve shop info. Please reload the app.");
+      setLoading(false);
     }
   }, [app]);
 
-  /* ----------------------------------
-     Index Table Selection
-  ----------------------------------- */
-  const { clearSelection } = useIndexResourceState(filteredProducts);
-
-  /* ----------------------------------
-     Fetch Products
-  ----------------------------------- */
-  const fetchProducts = useCallback(async () => {
+  useEffect(() => {
     if (!shop) return;
 
-    setLoading(true);
-    setError(null);
+    const fetchCustomProducts = async () => {
+      try {
+        setLoading(true);
 
-    try {
-      const res = await fetch(`/api/products?shop=${encodeURIComponent(shop)}`);
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const data: ApiResponse = await res.json();
-
-      if (!data.success) {
-        throw new Error(data.error || "Failed to fetch products");
-      }
-
-      setProducts(data.products);
-      setFilteredProducts(data.products);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-      setProducts([]);
-      setFilteredProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [shop]);
-
-  /* ----------------------------------
-     Auto Fetch
-  ----------------------------------- */
-  useEffect(() => {
-    if (shop) fetchProducts();
-  }, [shop, fetchProducts]);
-
-  /* ----------------------------------
-     Apply Filters
-  ----------------------------------- */
-  useEffect(() => {
-    let result = [...products];
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((p) => {
-        const shortId = p.id.split("/").pop() ?? "";
-        return (
-          p.title.toLowerCase().includes(q) || shortId.toLowerCase().includes(q)
+        const res = await fetch(
+          `/api/products?shop=${encodeURIComponent(shop)}&page=${page}&limit=${limit}`,
         );
-      });
-    }
 
-    if (statusFilter !== "all") {
-      result = result.filter((p) => p.status === statusFilter);
-    }
+        if (!res.ok) throw new Error("Failed to fetch products");
 
-    setFilteredProducts(result);
-    clearSelection();
-  }, [products, searchQuery, statusFilter, clearSelection]);
+        const result = await res.json();
 
-  /* ----------------------------------
-     Stats
-  ----------------------------------- */
-  const stats = {
-    total: products.length,
-    active: products.filter((p) => p.status === "ACTIVE").length,
-    enabledSamples: products.filter((p) => p.settings?.enabled).length,
+        setcustomProducts(result.data);
+        setTotalPages(result.pagination.totalPages);
+      } catch (err: any) {
+        setError(err.message || "Something went wrong");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomProducts();
+  }, [shop, page]);
+
+  // const fetchCustomProducts = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const res = await fetch(
+  //       `/api/products?shop=${encodeURIComponent(shop)}`,
+  //     );
+
+  //     if (!res.ok) throw new Error("Failed to fetch customProducts");
+
+  //     const data = await res.json();
+  //     setcustomProducts(result.data);
+  //     setTotalPages(result.pagination.totalPages);
+  //   } catch (err: any) {
+  //     setError(err.message || "Something went wrong");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  //   fetchCustomProducts();
+  // }, [shop]);
+
+  // Open price edit modal
+  const openPriceModal = (product: SampleProduct) => {
+    setEditingProduct(product);
+    setPriceInput(String(product.price));
+    setShowPriceModal(true);
   };
 
-  /* ----------------------------------
-     Table Rows
-  ----------------------------------- */
-  const rows = filteredProducts.map((product, index) => {
-    const shortId = product.id.split("/").pop();
+  // Close price edit modal
+  const closePriceModal = () => {
+    setShowPriceModal(false);
+    setEditingProduct(null);
+    setPriceInput("");
+    setUpdatingPrice(false);
+  };
 
-    return (
-      <IndexTable.Row
-        id={product.id}
-        key={product.id}
-        position={index}
+  // const handleUpdatePrice = async () => {
+  //   if (!editingProduct) return;
 
-        // selected={selectedResources.includes(product.id)}
-      >
-        <IndexTable.Cell>
-          <Text as="p" fontWeight="semibold">
-            {product.title}
-          </Text>
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          <StatusBadge status={product.status} />
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          <SettingsBadge settings={product.settings} />
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          <InlineStack gap="200">
-            <Button
-              size="micro"
-              onClick={() =>
-                window.open(
-                  `https://${shop}/admin/products/${shortId}`,
-                  "_blank",
-                )
-              }
-            >
-              Edit
-            </Button>
-            <Button
-              size="micro"
-              variant="secondary"
-              onClick={() =>
-                window.open(
-                  `https://${shop}/admin/products/${shortId}`,
-                  "_blank",
-                )
-              }
-            >
-              View
-            </Button>
-          </InlineStack>
-        </IndexTable.Cell>
-      </IndexTable.Row>
-    );
-  });
+  //   try {
+  //     setUpdatingPrice(true);
+
+  //     const response = await fetch("/api/products", {
+  //       method: "PUT",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         id: editingProduct.id,
+  //         price: Number(priceInput),
+  //       }),
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error("Failed to update price");
+  //     }
+
+  //     // Refresh the data
+  //     const res = await fetch(
+  //       `/api/products?shop=${encodeURIComponent(shop!)}`,
+  //     );
+  //     if (res.ok) {
+  //       const data = await res.json();
+  //       setcustomProducts(data);
+  //     }
+
+  //     closePriceModal();
+  //   } catch (error) {
+  //     console.error("Error updating price:", error);
+  //     // You might want to show an error toast here
+  //   } finally {
+  //     setUpdatingPrice(false);
+  //   }
+  // };
+
+  const handleUpdatePrice = async () => {
+    if (!editingProduct) return;
+
+    try {
+      setUpdatingPrice(true);
+
+      const response = await fetch(
+        `/api/products?shop=${encodeURIComponent(shop!)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editingProduct.id,
+            pricingType,
+            customPrice: pricingType === "CUSTOM" ? Number(priceInput) : null,
+            fixedPrice: pricingType === "FIXED" ? Number(priceInput) : null,
+            percentageOff:
+              pricingType === "PERCENTAGE" ? Number(priceInput) : null,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update price");
+      }
+
+      const res = await fetch(
+        `/api/products?shop=${encodeURIComponent(shop!)}`,
+      );
+
+      if (res.ok) {
+        // const data = await res.json();
+        // setcustomProducts(data);
+        const result = await res.json();
+        setcustomProducts(result.data);
+        setTotalPages(result.pagination?.totalPages || 1);
+      }
+
+      closePriceModal();
+    } catch (error) {
+      console.error("Error updating price:", error);
+    } finally {
+      setUpdatingPrice(false);
+    }
+  };
+  const handleDelete = async () => {
+    if (!deleteProduct) return;
+
+    try {
+      setDeleteLoading(true);
+
+      await fetch(`/api/products?shop=${encodeURIComponent(shop!)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteProduct.id }),
+      });
+
+      // Refresh list
+      const res = await fetch(
+        `/api/products?shop=${encodeURIComponent(shop!)}&page=${page}&limit=${limit}`,
+      );
+
+      if (res.ok) {
+        const result = await res.json();
+        setcustomProducts(result.data);
+        setTotalPages(result.pagination.totalPages);
+      }
+
+      setDeleteProduct(null);
+    } catch (error) {
+      console.error("Delete error:", error);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  /* ---------------- UI STATES ---------------- */
 
   if (loading) {
     return (
-      <SkeletonPage primaryAction>
+      <Page title="Sample Products">
         <Layout>
           <Layout.Section>
             <Card>
-              <SkeletonBodyText lines={6} />
+              <Box padding="400">
+                <Spinner />
+              </Box>
             </Card>
           </Layout.Section>
         </Layout>
-      </SkeletonPage>
+      </Page>
+    );
+  }
+
+  if (error) {
+    return (
+      <Page title="Sample Products">
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <Box padding="400">
+                <Text as="p" tone="critical">
+                  {error}
+                </Text>
+              </Box>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      </Page>
     );
   }
 
   return (
     <Page
-      title="Sample Settings Products"
-      // subtitle={`Products with sample settings for ${shop ?? "your store"}`}
+      title="Sample Products"
       primaryAction={{
-        content: "Refresh",
-        onAction: fetchProducts,
-        disabled: !shop,
+        content: "Add Product",
+        onAction: () => router.push("/products/create"),
       }}
-      secondaryActions={[
-        {
-          content: "Create",
-          onAction: () => {
-            window.location.href = "/products/create";
-          },
-        },
-      ]}
     >
       <Layout>
-        {products.length > 0 && (
-          <Layout.Section>
-            <Layout>
-              <Layout.Section variant="oneThird">
-                <Card>
-                  <Text as="p" variant="headingLg">
-                    {stats.total}
-                  </Text>
-                  <Text as="p" tone="subdued">
-                    Total Products
-                  </Text>
-                </Card>
-              </Layout.Section>
-              <Layout.Section variant="oneThird">
-                <Card>
-                  <Text as="p" variant="headingLg">
-                    {stats.active}
-                  </Text>
-                  <Text as="p" tone="subdued">
-                    Active Products
-                  </Text>
-                </Card>
-              </Layout.Section>
-              <Layout.Section variant="oneThird">
-                <Card>
-                  <Text as="p" variant="headingLg">
-                    {stats.enabledSamples}
-                  </Text>
-                  <Text as="p" tone="subdued">
-                    Enabled Samples
-                  </Text>
-                </Card>
-              </Layout.Section>
-            </Layout>
-          </Layout.Section>
-        )}
         <Layout.Section>
           <Card>
-            {!shop ? (
-              <EmptyState
-                heading="Waiting for shop context"
-                image={"EMPTY_STATE_IMAGE"}
-              >
-                Open this page from Shopify Admin.
-              </EmptyState>
-            ) : products.length === 0 ? (
-              <EmptyState
-                heading="No products found"
-                action={{ content: "Refresh", onAction: fetchProducts }}
-                image={"EMPTY_STATE_IMAGE"}
-              />
+            {customProducts.length === 0 ? (
+              <Box padding="400">
+                <Text as="p" tone="subdued">
+                  No products found.
+                </Text>
+              </Box>
             ) : (
               <IndexTable
-                resourceName={{ singular: "product", plural: "products" }}
-                itemCount={filteredProducts.length}
-                // selectedItemsCount={
-                //   allResourcesSelected ? "All" : selectedResources.length
-                // }
-                // onSelectionChange={handleSelectionChange}
+                resourceName={{
+                  singular: "product",
+                  plural: "products",
+                }}
+                itemCount={customProducts.length}
                 selectable={false}
                 headings={[
-                  { title: "Product" },
-                  { title: "Status" },
-                  { title: "Sample Settings" },
+                  { title: "Product Image" },
+                  { title: "Title" },
+                  { title: "Product Original Price" },
+                  { title: "Sample Price" },
+                  { title: "Pricing Type" },
+                  { title: "Created" },
                   { title: "Actions" },
                 ]}
               >
-                {rows}
+                {customProducts.map((p, index) => (
+                  <IndexTable.Row id={p.id} key={p.id} position={index}>
+                    <IndexTable.Cell>
+                      <img
+                        src={p.image}
+                        alt={p.title}
+                        style={{
+                          width: 50,
+                          height: 50,
+                          objectFit: "cover",
+                          borderRadius: 6,
+                        }}
+                      />
+                    </IndexTable.Cell>
+
+                    <IndexTable.Cell>
+                      <Text as="p" fontWeight="bold">
+                        {p.title}
+                      </Text>
+                    </IndexTable.Cell>
+
+                    <IndexTable.Cell>
+                      <Text as="p" fontWeight="bold" tone="success">
+                        {p.originalProductPrice.toFixed(2)}
+                      </Text>
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      <Text as="p" fontWeight="bold" tone="success">
+                        {p.price.toFixed(2)}
+                      </Text>
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      <Badge tone="info">
+                        {p.percentageOff != null
+                          ? "Percentage"
+                          : p.fixedPrice != null
+                            ? "Fixed"
+                            : "Custom"}
+                      </Badge>
+                    </IndexTable.Cell>
+
+                    <IndexTable.Cell>
+                      {new Date(p.createdAt).toLocaleDateString()}
+                    </IndexTable.Cell>
+
+                    <IndexTable.Cell>
+                      <InlineStack gap="200">
+                        <Tooltip content="Edit Price Type">
+                          <Button
+                            size="slim"
+                            icon={EditIcon}
+                            tone="success"
+                            onClick={() => openPriceModal(p)}
+                          />
+                        </Tooltip>
+                        <Tooltip content="Delete Product">
+                          <Button
+                            size="slim"
+                            icon={DeleteIcon}
+                            tone="critical"
+                            onClick={() => setDeleteProduct(p)}
+                          />
+                        </Tooltip>
+                      </InlineStack>
+                    </IndexTable.Cell>
+                  </IndexTable.Row>
+                ))}
               </IndexTable>
             )}
           </Card>
         </Layout.Section>
       </Layout>
+
+      <Modal
+        open={showPriceModal}
+        onClose={closePriceModal}
+        title="Update Product Price"
+        size="large"
+        primaryAction={{
+          content: "Update Price",
+          onAction: handleUpdatePrice,
+          disabled: !priceInput || Number(priceInput) <= 0 || updatingPrice,
+          loading: updatingPrice,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: closePriceModal,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            {editingProduct && (
+              <>
+                {/* Product Info */}
+                <Card>
+                  <InlineStack gap="300" blockAlign="center">
+                    {editingProduct.image && (
+                      <Thumbnail
+                        source={editingProduct.image}
+                        alt={editingProduct.title}
+                        size="medium"
+                      />
+                    )}
+                    <BlockStack gap="100">
+                      <Text variant="headingSm" as="h3">
+                        {editingProduct.title}
+                      </Text>
+                      <Text as="p" tone="subdued">
+                        Current Price: ${editingProduct.price.toFixed(2)}
+                      </Text>
+                    </BlockStack>
+                  </InlineStack>
+                </Card>
+
+                {/* Price Input */}
+                {/* <Card>
+                  <BlockStack gap="400">
+                    <TextField
+                      label="New Price"
+                      type="number"
+                      value={priceInput}
+                      onChange={setPriceInput}
+                      autoComplete="off"
+                      min={0}
+                      step={0.01}
+                      prefix="$"
+                      helpText="Enter the new price for this product"
+                    />
+
+                    {/* Price Comparison */}
+                {/* {priceInput && Number(priceInput) > 0 && (
+                      <Box
+                        background="bg-surface-secondary"
+                        padding="300"
+                        borderRadius="200"
+                      >
+                        <BlockStack gap="200">
+                          <Text variant="headingSm" as="h3">
+                            Price Update Summary
+                          </Text>
+                          <InlineStack align="space-between">
+                            <Text as="span" tone="subdued">
+                              Current Price:
+                            </Text>
+                            <Text as="span">
+                              ${editingProduct.price.toFixed(2)}
+                            </Text>
+                          </InlineStack> */}
+                {/* <InlineStack align="space-between">
+                            <Text as="span" tone="subdued">
+                              New Price:
+                            </Text>
+                            <Text 
+                              as="span" 
+                              fontWeight="bold" 
+                              tone={Number(priceInput) < editingProduct.price ? "success" : "critical"}
+                            >
+                              ${Number(priceInput).toFixed(2)}
+                            </Text>
+                          </InlineStack> */}
+                {/* <InlineStack align="space-between"></InlineStack>
+                        </BlockStack>
+                      </Box>
+                    )}
+                  </BlockStack> */}
+                {/* </Card>  */}
+                <Card>
+                  <BlockStack gap="400">
+                    <Select
+                      label="Pricing Type"
+                      options={[
+                        // { label: "Custom Price", value: "CUSTOM" },
+                        { label: "Fixed Price", value: "FIXED" },
+                        { label: "Percentage Discount", value: "PERCENTAGE" },
+                      ]}
+                      value={pricingType}
+                      onChange={(value) =>
+                        setPricingType(
+                          value as "CUSTOM" | "FIXED" | "PERCENTAGE",
+                        )
+                      }
+                    />
+
+                    <TextField
+                      label={
+                        pricingType === "PERCENTAGE"
+                          ? "Discount Percentage"
+                          : "Price"
+                      }
+                      type="number"
+                      value={priceInput}
+                      onChange={setPriceInput}
+                      autoComplete="off"
+                      min={0}
+                      step={pricingType === "PERCENTAGE" ? 1 : 0.01}
+                      prefix={pricingType === "PERCENTAGE" ? "%" : "$"}
+                      helpText={
+                        pricingType === "PERCENTAGE"
+                          ? "Enter percentage to reduce from original price"
+                          : "Enter new price"
+                      }
+                    />
+
+                    {/* Summary Section */}
+                    {priceInput && Number(priceInput) > 0 && (
+                      <Box
+                        background="bg-surface-secondary"
+                        padding="300"
+                        borderRadius="200"
+                      >
+                        <BlockStack gap="200">
+                          <Text variant="headingSm" as="h3">
+                            Price Update Summary
+                          </Text>
+
+                          <InlineStack align="space-between">
+                            <Text as="p" tone="subdued">
+                              Current Price:
+                            </Text>
+                            <Text as="p" tone="subdued">
+                              ${editingProduct.price.toFixed(2)}
+                            </Text>
+                          </InlineStack>
+
+                          {pricingType === "PERCENTAGE" && (
+                            <InlineStack align="space-between">
+                              <Text as="p" tone="subdued">
+                                {" "}
+                                Discount:
+                              </Text>
+                              <Text as="p" tone="subdued">
+                                {Number(priceInput)}%
+                              </Text>
+                            </InlineStack>
+                          )}
+
+                          {(pricingType === "CUSTOM" ||
+                            pricingType === "FIXED") && (
+                            <InlineStack align="space-between">
+                              <Text as="p" tone="subdued">
+                                {" "}
+                                New Price:
+                              </Text>
+                              <Text as="p" tone="subdued" fontWeight="bold">
+                                ${Number(priceInput).toFixed(2)}
+                              </Text>
+                            </InlineStack>
+                          )}
+                        </BlockStack>
+                      </Box>
+                    )}
+                  </BlockStack>
+                </Card>
+              </>
+            )}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+      {!loading && !error && customProducts.length > 0 && (
+        <Box padding="300">
+          <Pagination
+            hasPrevious={page > 1}
+            onPrevious={() => setPage((p) => Math.max(p - 1, 1))}
+            hasNext={page < totalPages}
+            onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
+          />
+        </Box>
+      )}
+      <DeleteConfirmationModal
+        open={!!deleteProduct}
+        onClose={() => setDeleteProduct(null)}
+        onConfirm={handleDelete}
+        loading={deleteLoading}
+        title="Delete Product"
+        message={
+          deleteProduct
+            ? `Are you sure you want to delete "${deleteProduct.title}"?`
+            : ""
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </Page>
   );
 }

@@ -60,25 +60,14 @@ model StoreSetting {
   updatedAt DateTime @updatedAt
 }
 
-model SampleProduct {
-  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
-
-  shop               String
-  productId          String  
-  enabled            Boolean  @default(true)
-
-  samplePrice        Int     
-  maxPerOrder        Int      @default(1)
-  maxPerCustomer     Int      @default(1)
-
-  allowedVariantIds  Int[]    
-  cooldownDays       Int      @default(0)
-
-  buttonText         String   @default("Get Sample")
-
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
+model ProductSetting {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  shop             String
+  productId        String  
+  sampleEnabled    Boolean  @default(false) 
+  reason           String?  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
   @@unique([shop, productId])
   @@index([shop])
   @@index([productId])
@@ -87,20 +76,15 @@ model SampleProduct {
 
 model SampleCustomer {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
-
   shop          String   
   email         String
   name          String?
-
   totalSamples  Int      @default(0)
   blocked       Boolean  @default(false)
-
   lastSampleAt  DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
   orders        SampleOrder[]
-
   @@unique([shop, email])
   @@index([email])
   @@index([shop])
@@ -108,24 +92,21 @@ model SampleCustomer {
 
 model SampleOrder {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
-
   shop          String
   email         String
-
   draftOrderId  String
   variantIds    Int[]
   sampleCount   Int
-
+  isPurchased  Boolean @default(false) 
   status        SampleOrderStatus @default(CREATED)
-
   createdAt     DateTime @default(now())
-
+  products      SampleProductPrice[]
   customer      SampleCustomer? @relation(fields: [customerId], references: [id])
   customerId    String? @db.ObjectId
-
   @@index([shop])
   @@index([email])
   @@index([draftOrderId])
+  
 }
 
 enum SampleOrderStatus {
@@ -133,4 +114,46 @@ enum SampleOrderStatus {
   COMPLETED
   CANCELLED
   BLOCKED
+}
+
+enum SamplePricingType {
+  FREE
+  FIXED
+  PERCENTAGE
+  CUSTOM
+}
+
+model SampleSettings {
+id            String   @id @default(auto()) @map("_id") @db.ObjectId
+shop          String   @unique
+enabled       Boolean  @default(false)
+pricingType   SamplePricingType @default(FREE)
+fixedPrice    Float?  
+percentageOff Float?  
+createdAt     DateTime @default(now())
+updatedAt     DateTime @updatedAt
+customPrices  SampleProductPrice[]
+}
+
+model SampleProductPrice {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  shop          String
+  productId     String  
+  title         String
+  fixedPrice    Float?  
+  percentageOff Float? 
+  image         String?
+  variantId     String?  
+  originalProductPrice Float  
+  order         SampleOrder? @relation(fields: [orderId], references: [id])
+  orderId       String? @db.ObjectId
+  price         Float   
+  settings      SampleSettings @relation(fields: [settingsId], references: [id])
+  settingsId    String   @db.ObjectId
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@unique([shop, productId, variantId])
+  @@index([shop])
+    @@index([orderId])
+
 }

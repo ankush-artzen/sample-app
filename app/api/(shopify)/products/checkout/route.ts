@@ -349,15 +349,259 @@ export async function POST(req: Request) {
       apiVersion: shopify.config.apiVersion,
     });
 
-    const lineItems = variantIdArray.map((id) => ({
-      variant_id: id,
-      quantity: 1,
-      applied_discount: {
-        description: "Sample Discount (90%)",
-        value_type: "percentage",
-        value: "90",
+    const variantDetails: Record<number, { productId: string; price: number }> =
+      {};
+
+    for (const id of variantIdArray) {
+      const v = await client.get({
+        path: `variants/${id}`,
+      });
+
+      variantDetails[id] = {
+        productId: String(v.body.variant.product_id),
+        price: parseFloat(v.body.variant.price),
+      };
+    }
+    const dbPrices = await prisma.sampleProductPrice.findMany({
+      where: {
+        shop,
+        OR: variantIdArray.flatMap((id) => [
+          {
+            productId: variantDetails[id].productId,
+            variantId: String(id),
+          },
+          {
+            productId: variantDetails[id].productId,
+            variantId: null,
+          },
+        ]),
       },
-    }));
+    });
+    console.log("db----dbPrices",dbPrices)
+
+    // const lineItems = variantIdArray.map((id) => ({
+    //   variant_id: id,
+    //   quantity: 1,
+    //   applied_discount: {
+    //     description: "Sample Discount (90%)",
+    //     value_type: "percentage",
+    //     value: "90",
+    //   },
+    // }));
+    const priceMap = new Map<string, number>();
+
+    dbPrices.forEach((p) => {
+      priceMap.set(`${p.productId}_${p.variantId ?? "all"}`, p.price);
+    });
+
+    // const lineItems = variantIdArray.map((id) => {
+    //   const productId = variantDetails[id].productId;
+
+    //   const variantKey = `${productId}_${id}`;
+    //   const productKey = `${productId}_all`;
+
+    //   const customPrice = priceMap.get(variantKey) ?? priceMap.get(productKey);
+
+    //   if (customPrice) {
+    //     return {
+    //       variant_id: id,
+    //       quantity: 1,
+    //       original_price: customPrice.toFixed(2),
+    //     };
+    //   }
+    // const globalSettings = await prisma.sampleSettings.findFirst({
+    //   where: { shop },
+    // });
+    // console.log("globalSettings", globalSettings);
+    // const lineItems = variantIdArray.map((id) => {
+    //   const productId = variantDetails[id].productId;
+    //   const originalPrice = variantDetails[id].price;
+    
+    //   const variantKey = `${productId}_${id}`;
+    //   const productKey = `${productId}_all`;
+    
+    //   const customPrice =
+    //     priceMap.get(variantKey) ?? priceMap.get(productKey);
+    
+    //   /* ---------------- GLOBAL DISABLED ---------------- */
+    //   if (!globalSettings?.enabled) {
+    //     return {
+    //       variant_id: id,
+    //       quantity: 1,
+    //     };
+    //   }
+    
+    //   /* ---------------- CUSTOM PRICE ---------------- */
+    //   if (customPrice !== undefined) {
+    //     return {
+    //       title: "Sample Product",
+    //       quantity: 1,
+    //       price: customPrice.toFixed(2),
+    //       requires_shipping: true,
+    //     };
+    //   }
+    
+    //   /* ---------------- GLOBAL SETTINGS ---------------- */
+    //   if (globalSettings.pricingType === "FIXED") {
+    //     return {
+    //       title: "Sample Product",
+    //       quantity: 1,
+    //       price: Number(globalSettings.fixedPrice).toFixed(2),
+    //       requires_shipping: true,
+    //     };
+    //   }
+    
+    //   // if (globalSettings.pricingType === "PERCENTAGE") {
+    //   //   const discounted =
+    //   //     originalPrice * (1 - Number(globalSettings.percentageOff) / 100);
+    
+    //   //   return {
+    //   //     title: "Sample Product",
+    //   //     quantity: 1,
+    //   //     price: discounted.toFixed(2),
+    //   //     requires_shipping: true,
+    //   //   };
+    //   // }
+    //   if (globalSettings.pricingType === "PERCENTAGE") {
+    //     return {
+    //       variant_id: id,
+    //       quantity: 1,
+    //       original_price: variantDetails[id].price.toFixed(2), 
+    //       applied_discount: {
+    //         description: `Sample Discount (${globalSettings.percentageOff}%)`,
+    //         value_type: "percentage",
+    //         value: String(globalSettings.percentageOff),
+    //       },
+    //     };
+    //   }
+      
+    //   /* ---------------- SAFETY FALLBACK ---------------- */
+    //   return {
+    //     variant_id: id,
+    //     quantity: 1,
+    //   };
+    // });
+    
+    const globalSettings = await prisma.sampleSettings.findFirst({
+      where: { shop },
+    });
+    
+    if (!globalSettings || !globalSettings.enabled) {
+      return NextResponse.json(
+        { error: "Sample products are disabled" },
+        { status: 403, headers: corsHeaders },
+      );
+    }
+    const lineItems = variantIdArray.map((id) => {
+      const variantPrice = variantDetails[id].price;
+      const productId = variantDetails[id].productId;
+    
+      // Keys
+      const variantKey = `${productId}_${id}`;
+      const productKey = `${productId}_all`;
+    
+      // 👇 PRIMARY: sampleProductPrice
+      const customPrice =
+        priceMap.get(variantKey) ??
+        priceMap.get(productKey);
+    
+      if (customPrice !== undefined) {
+        return {
+          title: "Sample Product",
+          quantity: 1,
+          price: customPrice.toFixed(2),
+          requires_shipping: true,
+        };
+      }
+    
+      if (globalSettings.pricingType === "FIXED") {
+        return {
+          title: "Sample Product",
+          quantity: 1,
+          price: Number(globalSettings.fixedPrice ?? 0).toFixed(2),
+          requires_shipping: true,
+        };
+      }
+    
+      return {
+        variant_id: id,
+        quantity: 1,
+        applied_discount: {
+          description: `Sample Discount (${globalSettings.percentageOff}%)`,
+          value_type: "percentage",
+          value: String(globalSettings.percentageOff),
+        },
+      };
+    });
+    
+    
+    // const lineItems = variantIdArray.map((id) => {
+    //   const variantPrice = variantDetails[id].price;
+    
+    //   // FIXED PRICE → custom line item
+    //   if (globalSettings.pricingType === "FIXED") {
+    //     return {
+    //       title: "Sample Product",
+    //       quantity: 1,
+    //       price: Number(globalSettings.fixedPrice ?? 0).toFixed(2),
+    //       requires_shipping: true,
+    //     };
+    //   }
+    
+    //   // PERCENTAGE OFF → variant discount
+    //   return {
+    //     variant_id: id,
+    //     quantity: 1,
+    //     original_price: variantPrice.toFixed(2),
+    //     applied_discount: {
+    //       description: `Sample Discount (${globalSettings.percentageOff}%)`,
+    //       value_type: "percentage",
+    //       value: String(globalSettings.percentageOff),
+    //     },
+    //   };
+    // });
+    
+    // const lineItems = variantIdArray.map((id) => {
+    //   const productId = variantDetails[id].productId;
+    
+    //   const variantKey = `${productId}_${id}`;
+    //   const productKey = `${productId}_all`;
+    
+    //   const customPrice =
+    //     priceMap.get(variantKey) ?? priceMap.get(productKey);
+    
+    //   if (customPrice !== undefined) {
+    //     return {
+    //       title: "Sample Product",
+    //       quantity: 1,
+    //       price: customPrice.toFixed(2), 
+    //       requires_shipping: true,
+    //     };
+    //   }
+    
+    //   return {
+    //     variant_id: id,
+    //     quantity: 1,
+    //     applied_discount: {
+    //       description: "Sample Discount (90%)",
+    //       value_type: "percentage",
+    //       value: "90",
+    //     },
+    //   };
+    // });
+    
+
+      // fallback = 90% discount
+    //   return {
+    //     variant_id: id,
+    //     quantity: 1,
+    //     applied_discount: {
+    //       description: "Sample Discount (90%)",
+    //       value_type: "percentage",
+    //       value: "90",
+    //     },
+    //   };
+    // });
 
     const response = await client.post({
       path: "draft_orders",

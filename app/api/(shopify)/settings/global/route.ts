@@ -1,115 +1,97 @@
-import shopify from "@/lib/shopify/initialize-context";
-import { findSessionsByShop } from "@/lib/db/session-storage";
+import { NextResponse } from "next/server";
+import prisma from "@/lib/db/prisma-connect";
 
-const SAVE_SAMPLE_SETTINGS = /* GraphQL */ `
-  mutation SaveSampleSettings($productId: ID!, $value: String!) {
-    metafieldsSet(
-      metafields: [{
-        ownerId: $productId
-        namespace: "sample"
-        key: "settings"
-        type: "json"
-        value: $value
-      }]
-    ) {
-      metafields {
-        id
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
+// export async function POST(req: Request) {
+//   try {
+//     const { searchParams } = new URL(req.url);
+//     const shop = searchParams.get("shop");
 
-const GET_PRODUCTS = /* GraphQL */ `
-  query GetProducts($first: Int!) {
-    products(first: $first) {
-      edges {
-        node {
-          id
-          metafield(namespace: "sample", key: "settings") {
-            value
-          }
-        }
-      }
-    }
-  }
-`;
+//     if (!shop) {
+//       return NextResponse.json({ error: "Missing shop" }, { status: 400 });
+//     }
 
+//     const body = await req.json();
+//     const {
+//       enabled,
+//       pricingType,
+//       fixedPrice,
+//       percentageOff,
+//     } = body.data ?? body;
+
+//     const settings = await prisma.sampleSettings.upsert({
+//       where: { shop },
+//       update: {
+//         enabled,
+//         pricingType,
+//         fixedPrice,
+//         percentageOff,
+//       },
+//       create: {
+//         shop,
+//         enabled: enabled ?? true,
+//         pricingType: pricingType ?? "FREE",
+//         fixedPrice,
+//         percentageOff,
+//       },
+//     });
+
+//     return NextResponse.json({ success: true, data: settings });
+//   } catch (err) {
+//     console.error("GLOBAL_SETTINGS_POST", err);
+//     return NextResponse.json(
+//       { error: "Failed to save global pricing settings" },
+//       { status: 500 }
+//     );
+//   }
+// }
 export async function POST(req: Request) {
   try {
-    const {
-      shop,
-      enabled,
-      limit,
-      onePerCustomer,
-    } = await req.json();
+    const { searchParams } = new URL(req.url);
+    const shop = searchParams.get("shop");
 
     if (!shop) {
-      return Response.json(
-        { error: "Missing shop" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing shop" }, { status: 400 });
     }
 
-    const sessions = await findSessionsByShop(shop);
-    if (!sessions.length) {
-      return Response.json(
-        { error: "Unauthorized shop" },
-        { status: 401 }
-      );
-    }
+    const body = await req.json();
+    const { enabled, pricingType, fixedPrice, percentageOff } = body.data ?? body;
 
-    const client = new shopify.clients.Graphql({
-      session: sessions[0],
-    });
+    const pricingData =
+      pricingType === "FIXED"
+        ? {
+            fixedPrice,
+            percentageOff: null,
+          }
+        : pricingType === "PERCENTAGE"
+        ? {
+            percentageOff,
+            fixedPrice: null,
+          }
+        : {
+            fixedPrice: null,
+            percentageOff: null,
+          };
 
-    // 1. Get all products
-    const productsResponse = await client.request(GET_PRODUCTS, {
-      variables: {
-        first: 100, // Adjust based on your needs
+    const settings = await prisma.sampleSettings.upsert({
+      where: { shop },
+      update: {
+        enabled,
+        pricingType,
+        ...pricingData,
+      },
+      create: {
+        shop,
+        enabled: enabled ?? true,
+        pricingType: pricingType ?? "FREE",
+        ...pricingData,
       },
     });
 
-    const products = productsResponse.data.products.edges;
-    const updatedProducts = [];
-    
-    // 2. Apply settings to products without existing settings
-    for (const edge of products) {
-      const product = edge.node;
-      
-      // Only apply if product doesn't have existing settings
-      if (!product.metafield || !product.metafield.value) {
-        const settings = {
-          enabled,
-          sampleProductId: product.id.split("/").pop(), // Use product as its own sample
-          limit: Number(limit) || 1,
-          onePerCustomer: Boolean(onePerCustomer),
-        };
-
-        await client.request(SAVE_SAMPLE_SETTINGS, {
-          variables: {
-            productId: product.id,
-            value: JSON.stringify(settings),
-          },
-        });
-        
-        updatedProducts.push(product.id);
-      }
-    }
-
-    return Response.json({ 
-      success: true,
-      updatedCount: updatedProducts.length,
-      updatedProducts
-    });
-
+    return NextResponse.json({ success: true, data: settings });
   } catch (err) {
-    console.error(err);
-    return Response.json(
-      { error: "Internal server error" },
+    console.error("GLOBAL_SETTINGS_POST", err);
+    return NextResponse.json(
+      { error: "Failed to save global pricing settings" },
       { status: 500 }
     );
   }

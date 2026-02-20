@@ -29,8 +29,7 @@ document.addEventListener("click", function (e) {
 
 const SAMPLE_LIMIT = 3;
 
-const APP_BASE =
-  "https://merely-sticks-taste-tax.trycloudflare.com";
+const APP_BASE = "https://cloth-anniversary-tagged-incidence.trycloudflare.com";
 const API_BASE = `${APP_BASE}/api/sample`;
 const CART_KEY = "sample_cart";
 
@@ -115,7 +114,11 @@ console.log("🛒 Initial cart:", cart);
 
 async function fetchConfig() {
   try {
-    const res = await fetch(`${API_BASE}?action=config`);
+    // const res = await fetch(`${API_BASE}?action=config`);
+    const res = await fetch(
+      `${API_BASE}?action=config&shop=${window.Shopify.shop}`,
+    );
+
     const data = await res.json();
 
     if (!data?.ok) return null;
@@ -184,6 +187,44 @@ function createSampleButton() {
 
   document.body.appendChild(btn);
 }
+function resolveSamplePrice(product, variant) {
+  if (!config) return "FREE";
+
+  const productId = String(product.id);
+  const variantId = String(variant.id);
+
+  // 1️⃣ Variant override
+  const variantOverride = config.productPrices?.find(
+    (p) => p.productId === productId && p.variantId === variantId,
+  );
+
+  if (variantOverride) return formatPrice(variantOverride.price);
+
+  // 2️⃣ Product override
+  const productOverride = config.productPrices?.find(
+    (p) => p.productId === productId && !p.variantId,
+  );
+
+  if (productOverride) return formatPrice(productOverride.price);
+
+  // 3️⃣ Global pricing
+  if (config.store.pricingType === "FIXED") {
+    return formatPrice(config.store.fixedPrice ?? 0);
+  }
+
+  if (config.store.pricingType === "PERCENTAGE") {
+    const original = variant.price / 100;
+    const discounted = original * ((100 - config.store.percentageOff) / 100);
+
+    return formatPrice(discounted);
+  }
+
+  return "FREE";
+}
+
+function formatPrice(value) {
+  return `${window.Shopify.currency.active} ${Number(value).toFixed(2)}`;
+}
 
 /* ---------------- MODAL ---------------- */
 
@@ -251,6 +292,41 @@ function createModal() {
 //   showSampleListing();
 // }
 // Enhanced customer validation with better UX
+// async function validateCustomer() {
+//   const nameInput = document.getElementById("name");
+//   const emailInput = document.getElementById("email");
+//   const name = nameInput.value.trim();
+//   const email = emailInput.value.trim();
+
+//   clearErrors();
+
+//   if (!name) {
+//     showError(nameInput, " user name required");
+//     return;
+//   }
+//   if (!email || !isValidEmail(email)) {
+//     showError(emailInput, "Valid email required");
+//     return;
+//   }
+
+//   // 🔴 CHECK SAMPLE STATUS FROM DB
+//   const res = await fetch(
+//     `${APP_BASE}/api/sample/status?email=${encodeURIComponent(email)}`,
+//   );
+//   const status = await res.json();
+
+//   if (!status.allowed) {
+//     alert(
+//       status.reason === "LIMIT_REACHED"
+//         ? "Sample limit reached for this email"
+//         : "You are blocked from ordering samples",
+//     );
+//     return;
+//   }
+
+//   setCustomer({ name, email, timestamp: Date.now() });
+//   showSampleListing();
+// }
 async function validateCustomer() {
   const nameInput = document.getElementById("name");
   const emailInput = document.getElementById("email");
@@ -260,30 +336,42 @@ async function validateCustomer() {
   clearErrors();
 
   if (!name) {
-    showError(nameInput, " user name required");
+    showError(nameInput, "User name required");
     return;
   }
+
   if (!email || !isValidEmail(email)) {
     showError(emailInput, "Valid email required");
     return;
   }
 
-  // 🔴 CHECK SAMPLE STATUS FROM DB
   const res = await fetch(
-    `${APP_BASE}/api/sample/status?email=${encodeURIComponent(email)}`,
+    `${APP_BASE}/api/sample/status?email=${encodeURIComponent(email)}`
   );
+
   const status = await res.json();
 
   if (!status.allowed) {
     alert(
       status.reason === "LIMIT_REACHED"
         ? "Sample limit reached for this email"
-        : "You are blocked from ordering samples",
+        : "You are blocked from ordering samples"
     );
     return;
   }
 
+  const existingCustomer = getCustomer();
+
+  if (!existingCustomer || existingCustomer.email !== email) {
+    console.log("🆕 New customer detected → clearing previous cart");
+
+    cart = [];
+    localStorage.removeItem(CART_KEY);
+    updateCartAndSync(cart);
+  }
+
   setCustomer({ name, email, timestamp: Date.now() });
+
   showSampleListing();
 }
 
@@ -310,58 +398,60 @@ function clearErrors() {
     input.style.borderColor = "";
   });
 }
-function renderSelectedSamples() {
-  const container = document.getElementById("sample_container");
-  const checkoutWrapper = document.getElementById("checkout_button");
+// function renderSelectedSamples() {
+//   const container = document.getElementById("sample_container");
+//   const checkoutWrapper = document.getElementById("checkout_button");
 
-  container.innerHTML = "";
+//   container.innerHTML = "";
 
-  // ❌ No samples
-  if (!cart.length) {
-    container.innerHTML = `
-      <div class="smry-dta empty-card">
-        <div class="image-smry">
-          <span style="font-size:48px;">📦</span>
-        </div>
-        <p class="item-title">No samples selected</p>
-        <p class="per_col-size">Choose a sample to continue</p>
-         <a 
-        href="${STORE_BASE}/collections/all"; 
-        class="btn-primary" 
-        style="margin-top:12px; display:inline-block; text-decoration:none;"
-      >
-        Browse Products
-      </a>
-      </div>
-    `;
-    checkoutWrapper.style.display = "none";
-    return;
-  }
+//   // ❌ No samples
+//   if (!cart.length) {
+//     container.innerHTML = `
+//       <div class="smry-dta empty-card">
+//         <div class="image-smry">
+//           <span style="font-size:48px;">📦</span>
+//         </div>
+//         <p class="item-title">No samples selected</p>
+//         <p class="per_col-size">Choose a sample to continue</p>
+//          <a 
+//         href="${STORE_BASE}/collections/all"; 
+//         class="btn-primary" 
+//         style="margin-top:12px; display:inline-block; text-decoration:none;"
+//       >
+//         Browse Products
+//       </a>
+//       </div>
+//     `;
+//     checkoutWrapper.style.display = "none";
+//     return;
+//   }
 
-  // ✅ Samples exist
-  checkoutWrapper.style.display = "flex";
+//   // ✅ Samples exist
+//   checkoutWrapper.style.display = "flex";
 
-  cart.forEach((item) => {
-    const card = document.createElement("div");
-    card.className = "smry-dta";
+//   cart.forEach((item) => {
+//     const card = document.createElement("div");
+//     card.className = "smry-dta";
 
-    card.innerHTML = `
-      <div class="image-smry">
-        <img src="${item.image}" />
-      </div>
-      <p class="item-title">${item.title}</p>
-      <button class="btn-primary remove-btn">Remove</button>
-    `;
-    // <p class="price-iteam">${item.price}</p>
+//     card.innerHTML = `
+//       <div class="image-smry">
+//         <img src="${item.image}" />
+//       </div>
+//       <p class="item-title">${item.title}</p>
+//       <p class="price-iteam">${resolveSamplePrice(product, variant)}</p>
 
-    card.querySelector(".remove-btn").onclick = () => {
-      const updatedCart = cart.filter((c) => c.variantId !== item.variantId);
-      updateCartAndSync(updatedCart);
-    };
+//       <button class="btn-primary remove-btn">Remove</button>
+//     `;
+//     // <p class="price-iteam">${item.price}</p>
 
-    container.appendChild(card);
-  });
-}
+//     card.querySelector(".remove-btn").onclick = () => {
+//       const updatedCart = cart.filter((c) => c.variantId !== item.variantId);
+//       updateCartAndSync(updatedCart);
+//     };
+
+//     container.appendChild(card);
+//   });
+// }
 
 // async function renderProductSelection() {
 //   const container = document.getElementById("sample_container");
@@ -395,6 +485,54 @@ function renderSelectedSamples() {
 //     container.appendChild(card);
 //   });
 // }
+function renderSelectedSamples() {
+  const container = document.getElementById("sample_container");
+  const checkoutWrapper = document.getElementById("checkout_button");
+
+  container.innerHTML = "";
+
+  if (!cart.length) {
+    container.innerHTML = `
+      <div class="smry-dta empty-card">
+        <span style="font-size:48px;">📦</span>
+        <p>No samples selected</p>
+          <p class="per_col-size">Choose a sample to continue</p>
+         <a 
+        href="${STORE_BASE}/collections/all"; 
+         class="btn-primary" 
+         style="margin-top:12px; display:inline-block; text-decoration:none;"
+      >
+      Browse Products
+     </a>
+      </div>
+    `;
+    checkoutWrapper.style.display = "none";
+    return;
+  }
+
+  checkoutWrapper.style.display = "flex";
+
+  cart.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "smry-dta";
+
+    card.innerHTML = `
+      <div class="image-smry">
+        <img src="${item.image}" />
+      </div>
+      <p class="item-title">${item.title}</p>
+      <p class="price-iteam">${item.price}</p>
+      <button class="btn-primary remove-btn">Remove</button>
+    `;
+
+    card.querySelector(".remove-btn").onclick = () => {
+      cart = cart.filter((c) => c.variantId !== item.variantId);
+      updateCartAndSync(cart);
+    };
+
+    container.appendChild(card);
+  });
+}
 async function renderProductSelection() {
   const container = document.getElementById("sample_container");
   container.innerHTML = "";
@@ -409,8 +547,13 @@ async function renderProductSelection() {
     selectedHeading.innerText = "Selected Samples";
     selectedHeading.style.width = "100%";
     container.appendChild(selectedHeading);
-
     cart.forEach((item) => {
+      const variant = product.variants.find((v) => v.id === item.variantId);
+
+      const price = variant
+        ? resolveSamplePrice(product, variant)
+        : item.price || "FREE";
+
       const card = document.createElement("div");
       card.className = "smry-dta";
 
@@ -419,17 +562,40 @@ async function renderProductSelection() {
           <img src="${item.image}" />
         </div>
         <p class="item-title">${item.title}</p>
-        <p class="price-iteam">₹${item.price}</p>
+        <p class="price-iteam">${price}</p>
         <button class="btn-primary remove-btn">Remove</button>
       `;
 
       card.querySelector(".remove-btn").onclick = () => {
         cart = cart.filter((c) => c.variantId !== item.variantId);
         updateCartAndSync(cart);
+        renderSelectedSamples();
+
       };
 
       container.appendChild(card);
     });
+
+    // cart.forEach((item) => {
+    //   const card = document.createElement("div");
+    //   card.className = "smry-dta";
+
+    //   card.innerHTML = `
+    //     <div class="image-smry">
+    //       <img src="${item.image}" />
+    //     </div>
+    //     <p class="item-title">${item.title}</p>
+
+    //     <button class="btn-primary remove-btn">Remove</button>
+    //   `;
+
+    //   card.querySelector(".remove-btn").onclick = () => {
+    //     cart = cart.filter((c) => c.variantId !== item.variantId);
+    //     updateCartAndSync(cart);
+    //   };
+
+    //   container.appendChild(card);
+    // });
   }
 
   /* ===============================
@@ -470,9 +636,9 @@ function createSampleCard(product, variant) {
       <img src="${product.featured_image}" />
     </div>
     <p class="item-title">${product.title}</p>
-    <p class="per_col-size">${variant.title}</p>
-    <p class="price-iteam">₹${config.store.amount}</p>
-    <button class="btn-primary">Add Sample</button>
+<p class="per_col-size">${variant.title}</p>
+<p class="price-iteam">${resolveSamplePrice(product, variant)}</p>
+    <button class="btn-primary">Get Sample </button>
   `;
 
   card.querySelector("button").onclick = () =>
@@ -551,18 +717,57 @@ function createSampleCard(product, variant) {
 
 //   updateCartAndSync(cart);
 // }
+// function toggleSampleVariant(product, variant) {
+//   const sameVariantIndex = cart.findIndex(
+//     (item) => item.variantId === variant.id,
+//   );
+
+//   if (sameVariantIndex > -1) {
+//     cart.splice(sameVariantIndex, 1);
+//     updateCartAndSync(cart);
+//     return;
+//   }
+
+//   // If another variant of SAME product exists → block
+//   const existingProductIndex = cart.findIndex(
+//     (item) => item.productId === product.id,
+//   );
+
+//   if (existingProductIndex > -1) {
+//     alert("You can select only one sample per product");
+//     return;
+//   }
+
+//   // Global sample limit check
+//   if (cart.length >= SAMPLE_LIMIT) {
+//     alert("Sample limit reached");
+//     return;
+//   }
+
+//   // Add new sample
+//   cart.push({
+//     productId: product.id,
+//     variantId: variant.id,
+//     title: `${product.title} - ${variant.title}`,
+//     image: product.featured_image,
+//     price: "90% Discount",
+//   });
+
+//   updateCartAndSync(cart);
+// }
 function toggleSampleVariant(product, variant) {
   const sameVariantIndex = cart.findIndex(
     (item) => item.variantId === variant.id,
   );
 
+  // Toggle off
   if (sameVariantIndex > -1) {
     cart.splice(sameVariantIndex, 1);
     updateCartAndSync(cart);
     return;
   }
 
-  // If another variant of SAME product exists → block
+  // Only one variant per product
   const existingProductIndex = cart.findIndex(
     (item) => item.productId === product.id,
   );
@@ -572,23 +777,25 @@ function toggleSampleVariant(product, variant) {
     return;
   }
 
-  // Global sample limit check
+  // Global limit
   if (cart.length >= SAMPLE_LIMIT) {
     alert("Sample limit reached");
     return;
   }
 
-  // Add new sample
+  const price = resolveSamplePrice(product, variant);
+
   cart.push({
     productId: product.id,
     variantId: variant.id,
     title: `${product.title} - ${variant.title}`,
     image: product.featured_image,
-    price: "90% Discount",
+    price,
   });
 
   updateCartAndSync(cart);
 }
+
 window.addEventListener("sample:cart-updated", (e) => {
   cart = e.detail;
   if (isProductPage()) {
@@ -667,13 +874,54 @@ window.addEventListener("sample:cart-updated", (e) => {
 //     checkoutBtn.disabled = false;
 //   }
 // }
+// async function checkout() {
+//   if (!cart.length) {
+//     alert("Please select at least one sample");
+//     return;
+//   }
+
+//   const customer = getCustomer();
+//   const customerEmail = customer?.email;
+
+//   if (!customerEmail) {
+//     alert("Customer email missing. Please re-enter details.");
+//     return;
+//   }
+
+//   const checkoutBtn = document.getElementById("checkout-btn");
+//   checkoutBtn.disabled = true;
+//   checkoutBtn.textContent = "Processing...";
+
+//   try {
+//     const res = await fetch(`${APP_BASE}/api/products/checkout`, {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({
+//         variantIds: cart.map((item) => item.variantId),
+//         customerEmail,
+//       }),
+//     });
+
+//     const data = await res.json();
+
+//     if (!res.ok) throw new Error(data.error || "Checkout failed");
+
+//     window.location.href = data.checkoutUrl;
+//   } catch (err) {
+//     console.error(err);
+//     alert("Checkout failed");
+//   } finally {
+//     checkoutBtn.disabled = false;
+//     checkoutBtn.textContent = "Checkout";
+//   }
+// }
 async function checkout() {
   if (!cart.length) {
     alert("Please select at least one sample");
     return;
   }
 
-  const customer = getCustomer(); // ✅ get stored customer
+  const customer = getCustomer();
   const customerEmail = customer?.email;
 
   if (!customerEmail) {
@@ -697,12 +945,18 @@ async function checkout() {
 
     const data = await res.json();
 
-    if (!res.ok) throw new Error(data.error || "Checkout failed");
+    // 🔴 SHOW BACKEND ERROR DIRECTLY
+    if (!res.ok) {
+      alert(data.error || data.message || "Checkout failed");
+      console.error("Backend error:", data);
+      return;
+    }
 
+    // ✅ Success
     window.location.href = data.checkoutUrl;
   } catch (err) {
-    console.error(err);
-    alert("Checkout failed");
+    console.error("Network / JS error:", err);
+    alert(err.message || "Network error");
   } finally {
     checkoutBtn.disabled = false;
     checkoutBtn.textContent = "Checkout";
@@ -713,8 +967,11 @@ async function checkout() {
 
 (async function init() {
   const cfg = await fetchConfig();
-  if (!cfg) return;
 
+  if (!cfg?.ok) {
+    console.log("🚫 Samples not available");
+    return;
+  }
   createSampleButton();
   createModal();
 })();

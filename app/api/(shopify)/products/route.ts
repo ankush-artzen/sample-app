@@ -1,177 +1,242 @@
-import shopify from "@/lib/shopify/initialize-context";
-import { findSessionsByShop } from "@/lib/db/session-storage";
+import { NextResponse } from "next/server";
+import prisma from "@/lib/db/prisma-connect";
+function calculateFinalPrice(
+  originalPrice: number,
+  pricingType: string,
+  customPrice?: number,
+  fixedPrice?: number,
+  percentageOff?: number,
+) {
+  if (pricingType === "FIXED") return Number(fixedPrice);
 
-export const dynamic = "force-dynamic";
-
-const GET_PRODUCTS_WITH_SAMPLE_SETTINGS = /* GraphQL */ `
-  query GetProductsWithSampleSettings($cursor: String) {
-    products(
-      first: 50
-      after: $cursor
-      query: "metafield:sample.settings:*"
-    ) {
-      edges {
-        cursor
-        node {
-          id
-          title
-          status
-          metafield(namespace: "sample", key: "settings") {
-            id
-            value
-          }
-        }
-      }
-      pageInfo {
-        hasNextPage
-      }
-    }
+  if (pricingType === "PERCENTAGE") {
+    return (
+      Number(originalPrice) -
+      (Number(originalPrice) * Number(percentageOff)) / 100
+    );
   }
-`;
 
-/* ----------------------------------
-   Type Definitions
------------------------------------ */
-type SampleSettings = {
-  enabled: boolean;
-  sampleProductId: string;
-  limit: number;
-  onePerCustomer: boolean;
-};
-
-type ProductNode = {
-  id: string;
-  title: string;
-  status: string;
-  metafield: {
-    id: string;
-    value: string;
-  } | null;
-};
-
-type ProductEdge = {
-  cursor: string;
-  node: ProductNode;
-};
-
-type ProductsQueryResponse = {
-  products: {
-    edges: ProductEdge[];
-    pageInfo: {
-      hasNextPage: boolean;
-    };
-  };
-};
-
-type ApiProduct = {
-  id: string;
-  title: string;
-  status: string;
-  settings: SampleSettings | null;
-};
-
+  return Number(customPrice);
+}
 
 export async function GET(req: Request) {
   try {
-    // ✅ Read from search params instead of body
+    const { searchParams } = new URL(req.url);
+
+    const shop = searchParams.get("shop");
+    const page = Number(searchParams.get("page") || 1);
+    const limit = Number(searchParams.get("limit") || 10);
+
+    if (!shop) {
+      return NextResponse.json({ error: "Shop is required" }, { status: 400 });
+    }
+
+    // Fetch all rows for shop
+    const products = await prisma.sampleProductPrice.findMany({
+      where: { shop },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const grouped = Object.values(
+      products.reduce((acc: any, item) => {
+        if (!acc[item.productId]) {
+          acc[item.productId] = item;
+        }
+        return acc;
+      }, {}),
+    );
+
+    const total = grouped.length;
+    const totalPages = Math.ceil(total / limit);
+    const start = (page - 1) * limit;
+    const end = start + limit;
+
+    const paginated = grouped.slice(start, end);
+
+    return NextResponse.json({
+      data: paginated,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Failed to fetch products" },
+      { status: 500 },
+    );
+  }
+}
+
+// export async function GET(req: Request) {
+//   try {
+//     const { searchParams } = new URL(req.url);
+//     const shop = searchParams.get("shop");
+
+//     if (!shop) {
+//       return NextResponse.json({ error: "Shop is required" }, { status: 400 });
+//     }
+
+//     const customProducts = await prisma.sampleProductPrice.findMany({
+//       where: { shop },
+//       orderBy: { createdAt: "desc" },
+//     });
+
+//     return NextResponse.json(customProducts);
+//   } catch (error) {
+//     console.error(error);
+//     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
+//   }
+// }
+
+export async function PUT(req: Request) {
+  try {
     const { searchParams } = new URL(req.url);
     const shop = searchParams.get("shop");
 
     if (!shop) {
-      return Response.json(
-        { error: "Shop is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing shop" }, { status: 400 });
     }
 
-    // ✅ Trust stored sessions only
-    const sessions = await findSessionsByShop(shop);
+    const body = await req.json();
+    const payload = body.data ?? body;
 
-    if (!sessions.length) {
-      return Response.json(
-        { error: "Unauthorized shop" },
-        { status: 401 }
-      );
+    const { id, pricingType, customPrice, fixedPrice, percentageOff,originalProductPrice } = payload;
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    const client = new shopify.clients.Graphql({
-      session: sessions[0],
+    // Find clicked variant
+    const product = await prisma.sampleProductPrice.findUnique({
+      where: { id },
     });
 
-    let products: ApiProduct[] = [];
-    let cursor: string | null = null;
-    let hasNextPage = true;
-
-    while (hasNextPage) {
-      const response = await client.request<ProductsQueryResponse>(
-        GET_PRODUCTS_WITH_SAMPLE_SETTINGS,
-        {
-          variables: { cursor },
-        }
-      );
-
-      if (!response.data) {
-        throw new Error("Shopify GraphQL response missing data");
-      }
-
-      const edges: ProductEdge[] =
-        response.data.products.edges;
-
-      products.push(
-        ...edges.map((edge) => ({
-          id: edge.node.id,
-          title: edge.node.title,
-          status: edge.node.status,
-          settings: edge.node.metafield
-            ? (JSON.parse(
-                edge.node.metafield.value
-              ) as SampleSettings)
-            : null,
-        }))
-      );
-    
-  //   const filteredProducts: ApiProduct[] = edges
-  //   .map((edge): ApiProduct | null => {
-  //     if (!edge.node.metafield) return null;
-  
-  //     return {
-  //       id: edge.node.id,
-  //       title: edge.node.title,
-  //       status: edge.node.status,
-  //       settings: JSON.parse(
-  //         edge.node.metafield.value
-  //       ) as SampleSettings,
-  //     };
-  //   })
-  //   .filter(
-  //     (product): product is ApiProduct => product !== null
-  //   );
-  
-  // products.push(...filteredProducts);
-  
-
-      hasNextPage =
-        response.data.products.pageInfo.hasNextPage;
-
-      cursor = edges.length
-        ? edges[edges.length - 1].cursor
-        : null;
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    return Response.json({
-      success: true,
-      count: products.length,
-      products,
+    const pricingData =
+      pricingType === "FIXED"
+        ? { fixedPrice, percentageOff: null }
+        : pricingType === "PERCENTAGE"
+          ? { percentageOff, fixedPrice: null }
+          : { fixedPrice: null, percentageOff: null };
+
+    // Get all variants of this product
+    const allVariants = await prisma.sampleProductPrice.findMany({
+      where: {
+        shop: product.shop,
+        productId: product.productId,
+      },
     });
-  } catch (error) {
-    console.error(
-      "Fetch products with sample settings error:",
-      error
+
+    await prisma.$transaction(
+      allVariants.map((variant) => {
+        const finalPrice = calculateFinalPrice(
+          variant.originalProductPrice,
+          pricingType,
+          customPrice,
+          fixedPrice,
+          percentageOff,
+        );
+
+        return prisma.sampleProductPrice.update({
+          where: { id: variant.id },
+          data: {
+            price: finalPrice,
+            ...pricingData,
+          },
+        });
+      }),
     );
 
-    return Response.json(
-      { error: "Internal server error" },
-      { status: 500 }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("CUSTOM_SETTINGS_PUT", error);
+    return NextResponse.json(
+      { error: "Failed to update price" },
+      { status: 500 },
+    );
+  }
+}
+// export async function PUT(req: Request) {
+//   try {
+//     const body = await req.json();
+//     const { id, price } = body;
+
+//     if (!id || price === undefined) {
+//       return NextResponse.json(
+//         { error: "id and price are required" },
+//         { status: 400 },
+//       );
+//     }
+
+//     // Find productId from clicked row
+//     const product = await prisma.sampleProductPrice.findUnique({
+//       where: { id },
+//     });
+
+//     if (!product) {
+//       return NextResponse.json({ error: "Product not found" }, { status: 404 });
+//     }
+
+//     // Update ALL variants of this product
+//     await prisma.sampleProductPrice.updateMany({
+//       where: {
+//         shop: product.shop,
+//         productId: product.productId,
+//       },
+//       data: {
+//         price: Number(price),
+//       },
+//     });
+
+//     return NextResponse.json({ success: true });
+//   } catch (error) {
+//     console.error(error);
+//     return NextResponse.json(
+//       { error: "Failed to update price" },
+//       { status: 500 },
+//     );
+//   }
+// }
+
+/* ================= DELETE ================= */
+export async function DELETE(req: Request) {
+  try {
+    const body = await req.json();
+    const { id } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    // Find productId
+    const product = await prisma.sampleProductPrice.findUnique({
+      where: { id },
+    });
+
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    await prisma.sampleProductPrice.deleteMany({
+      where: {
+        shop: product.shop,
+        productId: product.productId,
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Failed to delete product" },
+      { status: 500 },
     );
   }
 }

@@ -5,27 +5,21 @@ export async function POST(req: Request) {
   const { shop } = await req.json();
 
   if (!shop) {
-    return NextResponse.json(
-      { error: "Missing shop" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing shop" }, { status: 400 });
   }
 
   const sessions = await findSessionsByShop(shop);
   const session = sessions?.[0];
 
   if (!session) {
-    return NextResponse.json(
-      { error: "No session found" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "No session found" }, { status: 401 });
   }
 
   // ✅ THIS IS THE IMPORTANT FIX
   if (!session.accessToken) {
     return NextResponse.json(
       { error: "Session missing access token" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -34,16 +28,16 @@ export async function POST(req: Request) {
     {
       method: "POST",
       headers: {
-        "X-Shopify-Access-Token": session.accessToken, 
+        "X-Shopify-Access-Token": session.accessToken,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         script_tag: {
           event: "onload",
-          src: "https://merely-sticks-taste-tax.trycloudflare.com/sample-app.js",
+          src: "https://cloth-anniversary-tagged-incidence.trycloudflare.com/sample-app.js",
         },
       }),
-    }
+    },
   );
 
   const data = await res.json();

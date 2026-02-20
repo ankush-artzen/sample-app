@@ -72,9 +72,9 @@
 
 //    useEffect(() => {
 //       if (!app) return;
-  
+
 //       const shopFromConfig = (app as any)?.config?.shop;
-  
+
 //       if (shopFromConfig) {
 //         setShop(shopFromConfig);
 //         setError(null);
@@ -95,7 +95,6 @@
 //           </Layout.Section>
 //         )}
 
-      
 //         <Layout.Section>
 //           <Card>
 //             <BlockStack gap="400">
@@ -110,7 +109,7 @@
 //                 These settings ensure visual consistency with your brand.{"  "}By clicking on this sample-product into your live theme
 
 //               </Text>
-                
+
 //               <Button
 //                 size="large"
 //                 variant="primary"
@@ -129,11 +128,10 @@
 //     Open Theme Editor
 //   </Button>
 
-
 //             </BlockStack>
-        
+
 //           </Card>
-          
+
 //         </Layout.Section>
 //       </Layout>
 //     </Page>
@@ -204,7 +202,8 @@ export default function Settings() {
 
       setSaveMessage({
         type: "success",
-        message: "🎉 Storefront script installed successfully! Your theme is now enhanced with new features.",
+        message:
+          "🎉 Storefront script installed successfully! Your theme is now enhanced with new features.",
       });
     } catch (error: any) {
       setSaveMessage({
@@ -219,8 +218,6 @@ export default function Settings() {
   useEffect(() => {
     if (!app) return;
     setIsLoading(true);
-
-    // Simulate a small delay for better UX
     const timer = setTimeout(() => {
       const shopFromConfig = (app as any)?.config?.shop;
 
@@ -238,13 +235,13 @@ export default function Settings() {
   }, [app]);
 
   return (
-    <Page 
-      title="Theme Settings" 
+    <Page
+      title="Theme Settings"
       subtitle="Customize your store's appearance and functionality"
       primaryAction={{
-        content: 'View Documentation',
+        content: "View Documentation",
         external: true,
-        url: 'https://help.shopify.com',
+        url: "https://help.shopify.com",
       }}
     >
       <Layout>
@@ -259,13 +256,13 @@ export default function Settings() {
         )}
 
         {/* Shop Info Banner */}
-        {shop && (
+        {/* {shop && (
           <Layout.Section>
             <CalloutCard
               title={`Connected to ${storeName}`}
               illustration="https://cdn.shopify.com/shopifycloud/web/assets/v1/815375b3.svg"
               primaryAction={{
-                content: 'View Store',
+                content: "View Store",
                 url: `https://${shop}`,
                 external: true,
               }}
@@ -275,7 +272,7 @@ export default function Settings() {
               </Text>
             </CalloutCard>
           </Layout.Section>
-        )}
+        )} */}
 
         {/* Error State */}
         {error && (
@@ -283,137 +280,49 @@ export default function Settings() {
             <Banner
               title={error}
               tone="critical"
-              action={{ content: 'Reload', onAction: () => window.location.reload() }}
+              action={{
+                content: "Reload",
+                onAction: () => window.location.reload(),
+              }}
             />
           </Layout.Section>
         )}
-
         <Layout.Section>
-          <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-            {/* Installation Card */}
-            <Card roundedAbove="sm">
-              <BlockStack gap="400">
-                <InlineStack align="space-between">
-                  <Text variant="headingMd" as="h3">
-                    Script Installation
-                  </Text>
-                  {shop && <Badge tone="success">Ready</Badge>}
-                </InlineStack>
-                
-                <Text as="p" variant="bodyMd">
-                  Install the necessary scripts to enable advanced features on your storefront. 
-                  This includes custom buttons, color schemes, and interactive elements.
-                </Text>
-
-                <Box padding="400" background="bg-surface-secondary" borderRadius="200">
-                  <BlockStack gap="200">
-                    <Text variant="headingSm" as="h4">What gets installed:</Text>
-                    <BlockStack gap="100">
-                      <InlineStack align="start" gap="200">
-                        <Box  padding="100" borderRadius="full">
-                        </Box>
-                        <Text as="span" variant="bodyMd">Custom button scripts</Text>
-                      </InlineStack>
-                      <InlineStack align="start" gap="200">
-                        <Box  padding="100" borderRadius="full">
-                        </Box>
-                        <Text as="span" variant="bodyMd">Color theme controller</Text>
-                      </InlineStack>
-                      <InlineStack align="start" gap="200">
-                        <Box padding="100" borderRadius="full">
-                        </Box>
-                        <Text as="span" variant="bodyMd">Sample product integration</Text>
-                      </InlineStack>
-                    </BlockStack>
-                  </BlockStack>
-                </Box>
-
-                <Button
-                  size="large"
-                  variant="primary"
-                  // tone="success"
-                  loading={isInstalling}
-                  disabled={!shop || isLoading}
-                  onClick={installScriptTag}
-                  fullWidth
-                >
-                  {isInstalling ? "Installing…" : "Install Storefront Script"}
-                </Button>
-                
-                {(!shop || isLoading) && (
-                  <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                    {isLoading ? "Loading shop information..." : "Shop information is required"}
-                  </Text>
-                )}
-              </BlockStack>
-            </Card>
-
-            {/* Theme Editor Card */}
-            <Card roundedAbove="sm">
-              <BlockStack gap="400">
-                <InlineStack align="space-between">
-                  <Text variant="headingMd" as="h3">
-                    Theme Customization
-                  </Text>
-                  {shop && <Badge tone="info">Available</Badge>}
-                </InlineStack>
-                
-                <Text as="p" variant="bodyMd">
-                  Customize button labels, colors, and tones to match your brand identity. 
-                  These settings ensure visual consistency across your storefront.You can apply this to your store 
-                </Text>
-
-                <Box padding="400" background="bg-surface-secondary" borderRadius="200">
-                  <BlockStack gap="200">
-                    <Text variant="headingSm" as="h4">Customizable elements:</Text>
-                    <BlockStack gap="100">
-                      <InlineStack gap="200" align="start">
-                        <Badge tone="info">Button Labels</Badge>
-                        <Text as="span" variant="bodyMd">Customize call-to-action text</Text>
-                      </InlineStack>
-                      <InlineStack gap="200" align="start">
-                        <Badge tone="info">Color Scheme</Badge>
-                        <Text as="span" variant="bodyMd">Match your brand colors</Text>
-                      </InlineStack>
-                      <InlineStack gap="200" align="start">
-                        <Badge tone="info">Visual Tone</Badge>
-                        <Text as="span" variant="bodyMd">Set button styles and effects</Text>
-                      </InlineStack>
-                    </BlockStack>
-                  </BlockStack>
-                </Box>
-
-                <Button
-                  size="large"
-                  variant="primary"
-                  external
-                  url={themeEditorUrl}
-                  disabled={!shop || isLoading}
-                  fullWidth
-                >
-                  Open Theme Editor
-                </Button>
-                
-                {/* {shop && (
-                  <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                    Will open in a new tab
-                  </Text>
-                )} */}
-              </BlockStack>
-            </Card>
-          </InlineGrid>
+          <Banner title="Pro Tip" tone="success">
+            <p>
+              Always preview changes in your theme editor before publishing.
+              This ensures your storefront maintains a professional appearance.
+            </p>
+          </Banner>
         </Layout.Section>
-
         {/* Instructions Section */}
         <Layout.Section>
           <Card roundedAbove="sm">
-            <BlockStack gap="400">
-              <Text variant="headingMd" fontWeight="bold" as="h3" alignment="center">
+            {/* <Box padding="400" background="bg-surface-info" borderRadius="200">
+              <BlockStack gap="200">
+                <Text variant="headingSm" as="h4">
+                  Pro Tip
+                </Text>
+                <Text as="p" variant="bodyMd">
+                  Always preview changes in your theme editor before publishing.
+                  This ensures your storefront maintains a professional
+                  appearance.
+                </Text>
+              </BlockStack>
+            </Box> */}
+            <BlockStack gap="100">
+              {/* <Text
+                variant="headingLg"
+                fontWeight="bold"
+                as="h3"
+                alignment="center"
+              >
                 Setup Instructions
               </Text>
-              
-              <Divider />
-              
+
+              <Divider /> */}
+          <Text as="p" variant="headingMd" alignment="center" > Follow These Steps to use sample app</Text>
+
               <InlineGrid columns={{ xs: 1, md: 3 }} gap="400">
                 <Box padding="400">
                   <BlockStack gap="200" align="center">
@@ -422,15 +331,21 @@ export default function Settings() {
                       padding="400"
                       borderRadius="300"
                     >
-                      <Text variant="headingLg" as="h2"  alignment="center">
+                      <Text variant="headingLg" as="h2" alignment="center">
                         1
                       </Text>
                     </Box>
                     <Text variant="headingSm" as="h4" alignment="center">
                       Install Script
                     </Text>
-                    <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
-                      Click "Install Storefront Script" to add required functionality to your theme.
+                    <Text
+                      as="p"
+                      variant="bodyMd"
+                      tone="subdued"
+                      alignment="center"
+                    >
+                      Click "Install Storefront Script" to add required
+                      functionality to your theme.
                     </Text>
                   </BlockStack>
                 </Box>
@@ -449,8 +364,14 @@ export default function Settings() {
                     <Text variant="headingSm" as="h4" alignment="center">
                       Customize Theme
                     </Text>
-                    <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
-                      Open Theme Editor to adjust colors, buttons, and styles to match your brand.
+                    <Text
+                      as="p"
+                      variant="bodyMd"
+                      tone="subdued"
+                      alignment="center"
+                    >
+                      Open Theme Editor to adjust colors, buttons, and styles to
+                      match your brand.
                     </Text>
                   </BlockStack>
                 </Box>
@@ -462,33 +383,177 @@ export default function Settings() {
                       padding="400"
                       borderRadius="300"
                     >
-                      <Text variant="headingLg" as="h2" tone="subdued" alignment="center">
+                      <Text
+                        variant="headingLg"
+                        as="h2"
+                        tone="subdued"
+                        alignment="center"
+                      >
                         3
                       </Text>
                     </Box>
                     <Text variant="headingSm" as="h4" alignment="center">
                       Add Products
                     </Text>
-                    <Text as="p" variant="bodyMd" tone="subdued" alignment="center">
-                      Configure sample products in your theme to see the changes in action.
+                    <Text
+                      as="p"
+                      variant="bodyMd"
+                      tone="subdued"
+                      alignment="center"
+                    >
+                      Configure sample products in your theme to see the changes
+                      in action.
                     </Text>
                   </BlockStack>
                 </Box>
               </InlineGrid>
-
-              <Box padding="400" background="bg-surface-info" borderRadius="200">
-                <BlockStack gap="200">
-                  <Text variant="headingSm" as="h4">
-                    💡 Pro Tip
-                  </Text>
-                  <Text as="p" variant="bodyMd">
-                    Always preview changes in your theme editor before publishing. 
-                    This ensures your storefront maintains a professional appearance.
-                  </Text>
-                </BlockStack>
-              </Box>
             </BlockStack>
           </Card>
+        </Layout.Section>
+        <Layout.Section>
+          <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+            {/* Installation Card */}
+            <Card roundedAbove="sm">
+              <BlockStack gap="400">
+                <InlineStack align="space-between">
+                  <Text variant="headingMd" as="h3">
+                    Script Installation
+                  </Text>
+                  {shop && <Badge tone="success">Ready</Badge>}
+                </InlineStack>
+
+                <Text as="p" variant="bodyMd">
+                  Install the necessary scripts to enable advanced features on
+                  your storefront. This includes custom buttons, color schemes,
+                  and interactive elements.
+                </Text>
+
+                <Box
+                  padding="400"
+                  background="bg-surface-secondary"
+                  borderRadius="200"
+                >
+                  <BlockStack gap="200">
+                    <Text variant="headingSm" as="h4">
+                      What gets installed:
+                    </Text>
+                    <BlockStack gap="100">
+                      <InlineStack align="start" gap="200">
+                        <Box padding="100" borderRadius="full"></Box>
+                        <Text as="span" variant="bodyMd">
+                          Custom button scripts
+                        </Text>
+                      </InlineStack>
+                      <InlineStack align="start" gap="200">
+                        <Box padding="100" borderRadius="full"></Box>
+                        <Text as="span" variant="bodyMd">
+                          Color theme controller
+                        </Text>
+                      </InlineStack>
+                      <InlineStack align="start" gap="200">
+                        <Box padding="100" borderRadius="full"></Box>
+                        <Text as="span" variant="bodyMd">
+                          Sample product integration
+                        </Text>
+                      </InlineStack>
+                    </BlockStack>
+                  </BlockStack>
+                </Box>
+
+                <Button
+                  size="large"
+                  variant="primary"
+                  // tone="success"
+                  loading={isInstalling}
+                  disabled={!shop || isLoading}
+                  onClick={installScriptTag}
+                  fullWidth
+                >
+                  {isInstalling ? "Installing…" : "Install Storefront Script"}
+                </Button>
+
+                {(!shop || isLoading) && (
+                  <Text
+                    as="p"
+                    variant="bodySm"
+                    tone="subdued"
+                    alignment="center"
+                  >
+                    {isLoading
+                      ? "Loading shop information..."
+                      : "Shop information is required"}
+                  </Text>
+                )}
+              </BlockStack>
+            </Card>
+
+            {/* Theme Editor Card */}
+            <Card roundedAbove="sm">
+              <BlockStack gap="400">
+                <InlineStack align="space-between">
+                  <Text variant="headingMd" as="h3">
+                    Theme Customization
+                  </Text>
+                  {shop && <Badge tone="info">Available</Badge>}
+                </InlineStack>
+
+                <Text as="p" variant="bodyMd">
+                  Customize button labels, colors, and tones to match your brand
+                  identity. These settings ensure visual consistency across your
+                  storefront.You can apply this to your store
+                </Text>
+
+                <Box
+                  padding="400"
+                  background="bg-surface-secondary"
+                  borderRadius="200"
+                >
+                  <BlockStack gap="200">
+                    <Text variant="headingSm" as="h4">
+                      Customizable elements:
+                    </Text>
+                    <BlockStack gap="100">
+                      <InlineStack gap="200" align="start">
+                        <Badge tone="info">Button Labels</Badge>
+                        <Text as="span" variant="bodyMd">
+                          Customize call-to-action text
+                        </Text>
+                      </InlineStack>
+                      <InlineStack gap="200" align="start">
+                        <Badge tone="info">Color Scheme</Badge>
+                        <Text as="span" variant="bodyMd">
+                          Match your brand colors
+                        </Text>
+                      </InlineStack>
+                      <InlineStack gap="200" align="start">
+                        <Badge tone="info">Visual Tone</Badge>
+                        <Text as="span" variant="bodyMd">
+                          Set button styles and effects
+                        </Text>
+                      </InlineStack>
+                    </BlockStack>
+                  </BlockStack>
+                </Box>
+
+                <Button
+                  size="large"
+                  variant="primary"
+                  external
+                  url={themeEditorUrl}
+                  disabled={!shop || isLoading}
+                  fullWidth
+                >
+                  Open Theme Editor
+                </Button>
+
+                {/* {shop && (
+                  <Text as="p" variant="bodySm" tone="subdued" alignment="center">
+                    Will open in a new tab
+                  </Text>
+                )} */}
+              </BlockStack>
+            </Card>
+          </InlineGrid>
         </Layout.Section>
 
         {/* Footer Note */}
