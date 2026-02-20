@@ -324,8 +324,7 @@ export default function SampleAnalytics() {
                   </Text>
 
                   <Text tone="subdued" as="p">
-                    Customers started checkout but didn't complete.
-                  </Text>
+                  Customers started checkout but didn&apos;t complete.                  </Text>
 
                   <InlineGrid columns="1fr auto" gap="200" alignItems="end">
                     <Text variant="heading2xl" tone="critical" as="p">

@@ -129,8 +129,8 @@ export default function HelpPage() {
                   <BlockStack gap="200">
                     <Text as="p">Install Script</Text>
                     <Text as="span" variant="bodySm">
-                      Click "Install Storefront Script" to add required functionality to your theme.
-                    </Text>
+  Click <strong>Install Storefront Script</strong> to add required functionality to your theme.
+</Text>
                   </BlockStack>
                 </List.Item>
 

@@ -1002,8 +1002,7 @@ export default function ProductSampleSettings() {
                     <List>
                       <List.Item>Custom: Set any price</List.Item>
                       <List.Item>Fixed: Override product price</List.Item>
-                      <List.Item>Percentage: % off original</List.Item>
-                    </List>
+                      <List.Item>Percentage – percent off original</List.Item>                    </List>
                   </Box>
 
                   <Box

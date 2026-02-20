@@ -115,21 +115,8 @@ export default function SettingsPage() {
     }
   }, [app]);
 
-  // Load initial data once shop is known
-  useEffect(() => {
-    if (!shop) return;
-  
-    const loadData = async () => {
-      try {
-        await loadAllSettings(shop);
-      } catch (error) {
-        console.error("Failed to initialize:", error);
-      }
-    };
-  
-    loadData();
-  }, [shop]);
-  
+
+    
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -242,16 +229,19 @@ export default function SettingsPage() {
   
         if (data.data.customPrices) {
           const transformedPrices = await transformCustomPrices(
-            data.data.customPrices,
+            data.data.customPrices
           );
           setCustomPrices(transformedPrices);
         }
       }
-    } catch (error) {
     } finally {
       setLoading(false);
     }
   }, []);
+  useEffect(() => {
+    if (!shop) return;
+    loadAllSettings(shop);
+  }, [shop, loadAllSettings]);
 
   const transformCustomPrices = async (
     prices: any[],
@@ -429,36 +419,6 @@ export default function SettingsPage() {
     setProductVariants([]);
     setSelectedVariantDetails(null);
   };
-
-  // Custom pricing table resource state
-  // const { selectedResources, allResourcesSelected, handleSelectionChange } =
-  //   useIndexResourceState(customPrices as any);
-
-  // Custom pricing table columns
-  const customPriceRows = customPrices.map((price) => [
-    <Thumbnail
-      source={price.productImage || ""}
-      alt={price.productTitle}
-      size="small"
-    />,
-    price.productTitle,
-    price.variantTitle || "All Variants",
-    `$${price.originalPrice.toFixed(2)}`,
-    <Text as="p" tone="success">
-      ${price.customPrice.toFixed(2)}
-    </Text>,
-    <Badge
-      tone={price.productStatus === "active" ? "success" : "warning"}
-    >
-      {price.productStatus || "active"}
-    </Badge>,
-    <Button
-      icon={DeleteIcon}
-      tone="critical"
-      onClick={() => deleteCustomPrice(price.id)}
-      variant="plain"
-    />,
-  ]);
 
   if (loading) {
     return (
