@@ -1,7 +1,6 @@
 // app/settings/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -27,7 +26,7 @@ import {
 import { PlusCircleIcon, SaveIcon, DeleteIcon } from "@shopify/polaris-icons";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { RadioButton } from "@shopify/polaris";
-
+import { useState, useEffect, useCallback } from "react";
 // Types
 interface GeneralSettings {
   enabled: boolean;
@@ -119,7 +118,7 @@ export default function SettingsPage() {
   // Load initial data once shop is known
   useEffect(() => {
     if (!shop) return;
-
+  
     const loadData = async () => {
       try {
         await loadAllSettings(shop);
@@ -127,9 +126,10 @@ export default function SettingsPage() {
         console.error("Failed to initialize:", error);
       }
     };
-
+  
     loadData();
   }, [shop]);
+  
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -227,22 +227,19 @@ export default function SettingsPage() {
     }
   };
 
-  // Load all settings
-  const loadAllSettings = async (shopDomain: string) => {
+  const loadAllSettings = useCallback(async (shopDomain: string) => {
     try {
       const response = await fetch(`/api/settings?shop=${shopDomain}`);
       const data = await response.json();
-
+  
       if (data.success && data.data) {
-        // Set general settings
         setGeneralSettings({
           enabled: data.data.enabled || false,
           pricingType: data.data.pricingType || "FIXED",
           fixedPrice: data.data.fixedPrice || 0,
           percentageOff: data.data.percentageOff || 0,
         });
-
-        // Transform custom prices
+  
         if (data.data.customPrices) {
           const transformedPrices = await transformCustomPrices(
             data.data.customPrices,
@@ -254,7 +251,7 @@ export default function SettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const transformCustomPrices = async (
     prices: any[],
@@ -438,9 +435,8 @@ export default function SettingsPage() {
   //   useIndexResourceState(customPrices as any);
 
   // Custom pricing table columns
-  const customPriceRows = customPrices.map((price, index) => [
+  const customPriceRows = customPrices.map((price) => [
     <Thumbnail
-      key={index}
       source={price.productImage || ""}
       alt={price.productTitle}
       size="small"
@@ -452,13 +448,11 @@ export default function SettingsPage() {
       ${price.customPrice.toFixed(2)}
     </Text>,
     <Badge
-      key={index}
       tone={price.productStatus === "active" ? "success" : "warning"}
     >
       {price.productStatus || "active"}
     </Badge>,
     <Button
-      key={index}
       icon={DeleteIcon}
       tone="critical"
       onClick={() => deleteCustomPrice(price.id)}

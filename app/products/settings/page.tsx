@@ -344,8 +344,8 @@ export default function Settings() {
                       tone="subdued"
                       alignment="center"
                     >
-                      Click "Install Storefront Script" to add required
-                      functionality to your theme.
+                 Click &quot;Install Storefront Script&quot; to add required
+                 functionality to your theme.
                     </Text>
                   </BlockStack>
                 </Box>
