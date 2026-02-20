@@ -1,10 +1,10 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "f2229f6ce403729de41d141cffc967b3"
-application_url = "https://arlie-unloathsome-severely.ngrok-free.dev"
+client_id = "2e1dbe67036223d5e04de52864d6605b"
+application_url = "https://sample-app-two-sandy.vercel.app"
 embedded = true
-name = "sample-app-demo"
-handle = "sample-app-demo-001"
+name = "sample-app-dev"
+handle = "sample-app-dev-oo1"
 
 [build]
 automatically_update_urls_on_dev = true
@@ -23,9 +23,9 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://arlie-unloathsome-severely.ngrok-free.dev/auth/callback",
-  "https://arlie-unloathsome-severely.ngrok-free.dev/auth/shopify/callback",
-  "https://arlie-unloathsome-severely.ngrok-free.dev/api/auth/callback"
+  "https://sample-app-two-sandy.vercel.app/auth/callback",
+  "https://sample-app-two-sandy.vercel.app/auth/shopify/callback",
+  "https://sample-app-two-sandy.vercel.app/api/auth/callback"
 ]
 
 [pos]

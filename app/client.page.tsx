@@ -450,7 +450,7 @@ export default function HomePage() {
                       tone="success"
                       loading={isLoading}
                       disabled={stats.globalEnabled}
-                      onClick={() => router.push("/settings/global")}
+                      onClick={() => router.push("/products/product-settings/enable")}
                     >
                       {stats.globalEnabled ? "Enabled" : "Enable"}
                     </Button>
@@ -468,7 +468,6 @@ export default function HomePage() {
                         Custom Products
                       </Text>
                     </InlineStack>
-                    {stats.customProducts > 0 ? (
                       <List type="bullet">
                         <List.Item>
                           Individual pricing rules ({stats.overrides} overrides)
@@ -476,11 +475,7 @@ export default function HomePage() {
                         <List.Item>Variant-level control</List.Item>
                         <List.Item>Advanced inventory tracking</List.Item>
                       </List>
-                    ) : (
-                      <Text as="p" tone="subdued">
-                        No custom products configured yet.
-                      </Text>
-                    )}
+                 
                     <Button
                       variant="primary"
                       tone="success"
