@@ -241,23 +241,26 @@ export async function POST(req: Request) {
 
   try {
     /* ---------------- DETECT SHOP ---------------- */
-    let shop: string | null = null;
+    const body = await req.json();
 
-    if (origin) {
-      try {
-        shop = new URL(origin).hostname;
-      } catch {}
-    }
-
+    let shop = body.shop as string | null;
+    
     if (!shop) {
-      const referer = req.headers.get("referer");
-      if (referer) {
+      const origin = req.headers.get("origin");
+      if (origin) {
         try {
-          shop = new URL(referer).hostname;
+          shop = new URL(origin).hostname;
         } catch {}
       }
     }
-
+    console.log("shoppppppppppppppppp-----------------------------",shop)
+    
+    if (!shop || !isValidShop(shop)) {
+      return NextResponse.json(
+        { error: "Invalid shop domain" },
+        { status: 400, headers: corsHeaders },
+      );
+    }
     console.log("Detected shop:", shop);
 
     if (!shop || !isValidShop(shop)) {
@@ -268,7 +271,7 @@ export async function POST(req: Request) {
     }
 
     /* ---------------- BODY ---------------- */
-    const body = await req.json();
+    // const body = await req.json();
 
     const { variantId, variantIds, customerEmail } = body as {
       variantId?: number;

@@ -945,6 +945,7 @@ async function checkout() {
     });
 
     const data = await res.json();
+    console.log("data**************",data)
 
     // 🔴 SHOW BACKEND ERROR DIRECTLY
     if (!res.ok) {
