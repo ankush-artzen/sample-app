@@ -116,7 +116,7 @@ async function fetchConfig() {
   try {
     // const res = await fetch(`${API_BASE}?action=config`);
     const res = await fetch(
-      `${API_BASE}?action=config&shop=${window.Shopify.shop}`,
+      `${API_BASE}?action=config&shop=${SHOP_NAME}`,
     );
 
     const data = await res.json();
