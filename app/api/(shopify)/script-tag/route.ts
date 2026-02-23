@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         script_tag: {
           event: "onload",
-          src: "https://sample-app-two-sandy.vercel.app/sample-app.js",
+          src: "https://boulevard-icon-sailing-app.trycloudflare.com/sample-app.js",
         },
       }),
     },

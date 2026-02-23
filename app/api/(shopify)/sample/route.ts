@@ -95,6 +95,79 @@
 //     NextResponse.json({ ok: false, message: "Invalid action" })
 //   );
 // }
+// import { NextResponse } from "next/server";
+// import prisma from "@/lib/db/prisma-connect";
+
+// function cors(res: NextResponse) {
+//   res.headers.set("Access-Control-Allow-Origin", "*");
+//   res.headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+//   res.headers.set("Access-Control-Allow-Headers", "Content-Type");
+//   return res;
+// }
+
+// export async function GET(req: Request) {
+//   const { searchParams } = new URL(req.url);
+//   const action = searchParams.get("action");
+//   const shop = searchParams.get("shop");
+
+//   if (action !== "config" || !shop) {
+//     return cors(
+//       NextResponse.json({ ok: false, message: "Invalid request" }, { status: 400 })
+//     );
+//   }
+
+//   try {
+//     // 🔵 Load Store Settings
+//     const settings = await prisma.sampleSettings.findUnique({
+//       where: { shop },
+//       include: {
+//         customPrices: true,
+//       },
+//     });
+    
+//     if (!settings) {
+//       return cors(
+//         NextResponse.json({ ok: false, message: "Store not configured" })
+//       );
+//     }
+    
+//     if (!settings.enabled && settings.customPrices.length === 0) {
+//       return cors(
+//         NextResponse.json({
+//           ok: false,
+//           disabled: true,
+//           message: "Samples disabled and no product pricing found",
+//         })
+//       );
+//     }
+    
+//     return cors(
+//       NextResponse.json({
+//         ok: true,
+    
+//         store: {
+//           enabled: settings.enabled,
+//           pricingType: settings.pricingType,
+//           fixedPrice: settings.fixedPrice,
+//           percentageOff: settings.percentageOff,
+//         },
+    
+//         productPrices: settings.customPrices,
+    
+//         ui: {
+//           buttonText: "GET SAMPLE",
+//         },
+//       })
+//     );
+
+//   } catch (err) {
+//     console.error("Sample config error:", err);
+
+//     return cors(
+//       NextResponse.json({ ok: false, message: "Server error" })
+//     );
+//   }
+// }
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db/prisma-connect";
 
@@ -117,22 +190,20 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 🔵 Load Store Settings
     const settings = await prisma.sampleSettings.findUnique({
       where: { shop },
       include: {
         customPrices: true,
       },
     });
-    
+
     if (!settings) {
       return cors(
         NextResponse.json({ ok: false, message: "Store not configured" })
       );
     }
-    
-    // 🚫 MAIN LOGIC:
-    // If store disabled AND no product custom prices → stop completely
+
+    // Disabled + no product overrides = stop
     if (!settings.enabled && settings.customPrices.length === 0) {
       return cors(
         NextResponse.json({
@@ -142,44 +213,30 @@ export async function GET(req: Request) {
         })
       );
     }
-    
+
     return cors(
       NextResponse.json({
         ok: true,
-    
+
         store: {
           enabled: settings.enabled,
           pricingType: settings.pricingType,
           fixedPrice: settings.fixedPrice,
           percentageOff: settings.percentageOff,
         },
-    
+
         productPrices: settings.customPrices,
-    
-        ui: {
-          buttonText: "GET SAMPLE",
+
+        ui: settings.ui || {
+          buttonText: "Get Sample",
+          bgColor: "#000000",
+          textColor: "#ffffff",
+          hoverColor: "#333333",
+          borderRadius: 6,
+          position: "right",
         },
       })
     );
-    
-    // return cors(
-    //   NextResponse.json({
-    //     ok: true,
-
-    //     store: {
-    //       enabled: settings.enabled,
-    //       pricingType: settings.pricingType,
-    //       fixedPrice: settings.fixedPrice,
-    //       percentageOff: settings.percentageOff,
-    //     },
-
-    //     productPrices: settings.customPrices,
-
-    //     ui: {
-    //       buttonText: "GET SAMPLE",
-    //     },
-    //   })
-    // );
   } catch (err) {
     console.error("Sample config error:", err);
 

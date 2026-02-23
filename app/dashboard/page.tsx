@@ -380,7 +380,7 @@ export default function SampleAnalytics() {
             </InlineGrid>
           )}
         </Layout.Section>
-
+{/* 
         <Layout.Section>
           <Card>
             <BlockStack gap="300">
@@ -407,7 +407,7 @@ export default function SampleAnalytics() {
               )}
             </BlockStack>
           </Card>
-        </Layout.Section>
+        </Layout.Section> */}
 
         <Layout.Section>
           <Card>

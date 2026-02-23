@@ -29,7 +29,7 @@ document.addEventListener("click", function (e) {
 
 const SAMPLE_LIMIT = 3;
 
-const APP_BASE = "https://sample-app-two-sandy.vercel.app";
+const APP_BASE = "https://boulevard-icon-sailing-app.trycloudflare.com";
 const API_BASE = `${APP_BASE}/api/sample`;
 const CART_KEY = "sample_cart";
 
@@ -120,7 +120,7 @@ async function fetchConfig() {
     );
 
     const data = await res.json();
-
+console.log("dataaa-config---------",data)
     if (!data?.ok) return null;
 
     config = data;
@@ -154,36 +154,68 @@ function resolveProductImage(product, variantIndex = 0) {
   return "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-image_large.png";
 }
 
+// function createSampleButton() {
+//   const btn = document.createElement("button");
+//   btn.innerText = config.ui?.buttonText || "Get Sample";
+
+//   btn.style.position = "fixed";
+//   btn.style.bottom = "20px";
+//   btn.style.right = "20px";
+//   btn.style.zIndex = "9999";
+//   btn.style.padding = "12px 18px";
+//   btn.style.background = "#000";
+//   btn.style.color = "#fff";
+//   btn.style.borderRadius = "6px";
+//   btn.style.cursor = "pointer";
+
+//   btn.onclick = () => {
+//     const modal = document.getElementById("sample-modal");
+//     modal.style.display = "block";
+
+//     const customer = getCustomer();
+
+//     if (customer) {
+//       console.log("🟢 Existing customer found, skipping form");
+//       showSampleListing();
+//     } else {
+//       console.log("🔴 No customer found, showing form");
+//       document.getElementById("customer_container").style.display = "block";
+//       document.getElementById("sample_container").style.display = "none";
+//       document.getElementById("checkout_button").style.display = "none";
+//     }
+//   };
+
+//   document.body.appendChild(btn);
+// }
 function createSampleButton() {
+  const ui = config.ui || {};
+
   const btn = document.createElement("button");
-  btn.innerText = config.ui?.buttonText || "Get Sample";
+  btn.className = "js-sample-btn";
+
+  btn.innerText = ui.buttonText || "Get Sample";
 
   btn.style.position = "fixed";
   btn.style.bottom = "20px";
   btn.style.right = "20px";
   btn.style.zIndex = "9999";
   btn.style.padding = "12px 18px";
-  btn.style.background = "#000";
-  btn.style.color = "#fff";
-  btn.style.borderRadius = "6px";
+
+  btn.style.background = ui.bgColor || "#000";
+  btn.style.color = ui.textColor || "#fff";
+  btn.style.borderRadius = (ui.borderRadius || 6) + "px";
   btn.style.cursor = "pointer";
 
-  btn.onclick = () => {
-    const modal = document.getElementById("sample-modal");
-    modal.style.display = "block";
+  // Hover
+  if (ui.hoverColor) {
+    btn.addEventListener("mouseenter", () => {
+      btn.style.background = ui.hoverColor;
+    });
 
-    const customer = getCustomer();
-
-    if (customer) {
-      console.log("🟢 Existing customer found, skipping form");
-      showSampleListing();
-    } else {
-      console.log("🔴 No customer found, showing form");
-      document.getElementById("customer_container").style.display = "block";
-      document.getElementById("sample_container").style.display = "none";
-      document.getElementById("checkout_button").style.display = "none";
-    }
-  };
+    btn.addEventListener("mouseleave", () => {
+      btn.style.background = ui.bgColor || "#000";
+    });
+  }
 
   document.body.appendChild(btn);
 }

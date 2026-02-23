@@ -12,10 +12,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <AppProvider i18n={translations}>
       <TanstackProvider>
         <ui-nav-menu>
-        <Link href="/dashboard">Analytics </Link>
+        {/* <Link href="/dashboard">Analytics </Link> */}
           <Link href="/products">Custom Products </Link>
           <Link href="/products/customers">Customers </Link>
-          <Link href="/products/settings">Theme Settings</Link>
           <Link href="/products/product-settings/enable">Sample Settings</Link>
           <Link href="/help">Help</Link>
         </ui-nav-menu>

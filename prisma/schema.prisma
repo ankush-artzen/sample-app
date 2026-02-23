@@ -130,6 +130,7 @@ enabled       Boolean  @default(false)
 pricingType   SamplePricingType @default(FREE)
 fixedPrice    Float?  
 percentageOff Float?  
+ui            Json? 
 createdAt     DateTime @default(now())
 updatedAt     DateTime @updatedAt
 customPrices  SampleProductPrice[]

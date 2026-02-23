@@ -12,20 +12,22 @@ import {
   BlockStack,
   InlineGrid,
   Badge,
-  Divider,
   InlineStack,
   Button,
   Icon,
-  Tag,
   Spinner,
+  SkeletonDisplayText,
+  SkeletonBodyText,
+  DataTable,
+  EmptyState,
 } from "@shopify/polaris";
 import { useAppBridge } from "@shopify/app-bridge-react";
-
 import {
   SettingsIcon,
   ProductIcon,
-  GlobeIcon,
   CursorIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
 } from "@shopify/polaris-icons";
 import { useRouter } from "next/navigation";
 
@@ -34,9 +36,13 @@ interface Stats {
   customProducts: number;
   overrides: number;
   lastUpdated: string | null;
+  abandoned: number;
+  completed: number;
+  totalCustomers: number;
+  topCustomers: any[];
+  topProducts: any[];
 }
 
-// Add interface for detailed settings
 interface DetailedSettings {
   quantityLimit?: number;
   price?: number;
@@ -55,16 +61,100 @@ export default function HomePage() {
     customProducts: 0,
     overrides: 0,
     lastUpdated: null,
+    abandoned: 0,
+    completed: 0,
+    totalCustomers: 0,
+    topCustomers: [],
+    topProducts: [],
   });
   const [detailedSettings, setDetailedSettings] = useState<DetailedSettings>(
     {},
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [shop, setShop] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const app = useAppBridge();
+  const [shop, setShop] = useState<string>("");
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<any[]>([]);
 
+  const [trends] = useState({
+    abandoned: { value: 12, isPositive: false },
+    completed: { value: 8, isPositive: true },
+    customers: { value: 15, isPositive: true },
+  });
+
+  /* ---------------- GET SHOP ---------------- */
+  useEffect(() => {
+    if (!app) return;
+
+    const shopFromConfig = (app as any)?.config?.shop;
+
+    if (shopFromConfig) {
+      setShop(shopFromConfig);
+    } else if (typeof window !== "undefined") {
+      setShop(window.location.hostname);
+    }
+  }, [app]);
+
+  // Fetch orders
+  useEffect(() => {
+    if (!shop) return;
+
+    const hasFetched = sessionStorage.getItem("sampleOrdersListFetched");
+
+    if (hasFetched) {
+      console.log("⏭ Orders API skipped — already fetched");
+      return;
+    }
+
+    console.log("🚀 Refresh detected — loading orders");
+
+    sessionStorage.setItem("sampleOrdersListFetched", "true");
+
+    fetch(`/api/sample/orders?shop=${shop}&type=abandoned`)
+      .then((res) => res.json())
+      .then((data) => {
+        setOrders(data.data);
+        setLoading(false);
+      });
+  }, [shop]);
+
+  // Fetch top products
+  useEffect(() => {
+    if (!shop) return;
+
+    fetch(`/api/sample/sample-status/top-products?shop=${shop}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setTopProducts(data.topProducts || []);
+      })
+      .catch((err) => {
+        console.error("Top products fetch error:", err);
+      });
+  }, [shop]);
+
+  // Fetch stats
+  useEffect(() => {
+    if (!shop) return;
+
+    fetch(`/api/sample/sample-status/count?shop=${shop}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setStats((prev) => ({
+          ...prev,
+          abandoned: data.abandoned,
+          completed: data.completed,
+          totalCustomers: data.totalCustomers,
+          topCustomers: data.topCustomers,
+          topProducts: data.topProducts,
+        }));
+        setLoading(false);
+      });
+  }, [shop]);
+
+  // Fetch shop info from App Bridge
   useEffect(() => {
     const shopFromConfig = (app as any)?.config?.shop;
     if (shopFromConfig) {
@@ -74,6 +164,7 @@ export default function HomePage() {
     }
   }, [app]);
 
+  // Fetch stats and detailed settings when shop changes
   useEffect(() => {
     if (shop) {
       refreshStats();
@@ -92,13 +183,11 @@ export default function HomePage() {
       if (!response.ok) throw new Error("Failed");
 
       const data = await response.json();
-      setStats(data);
+      setStats((prev) => ({
+        ...prev,
+        ...data,
+      }));
       console.log("Stats data:", data);
-
-      // setSaveMessage({
-      //   type: "success",
-      //   message: "Stats refreshed successfully",
-      // });
     } catch (error) {
       console.error("Error refreshing stats:", error);
       setSaveMessage({
@@ -134,6 +223,7 @@ export default function HomePage() {
       minute: "2-digit",
     });
   };
+
   const CardLoader = () => (
     <Box padding="400" minHeight="120">
       <InlineStack align="center">
@@ -141,6 +231,30 @@ export default function HomePage() {
       </InlineStack>
     </Box>
   );
+
+  const renderTrendIndicator = (trend: {
+    value: number;
+    isPositive: boolean;
+  }) => {
+    const isGood =
+      (trend.isPositive && trend.value > 0) ||
+      (!trend.isPositive && trend.value < 0);
+    return (
+      <BlockStack gap="100">
+        <InlineGrid columns="1fr auto" gap="200">
+          <Text as="span" variant="bodySm" tone="subdued">
+            vs previous period
+          </Text>
+          <InlineGrid columns="auto auto" gap="100">
+            <Icon
+              source={trend.isPositive ? ArrowUpIcon : ArrowDownIcon}
+              tone={isGood ? "success" : "critical"}
+            />
+          </InlineGrid>
+        </InlineGrid>
+      </BlockStack>
+    );
+  };
 
   return (
     <Page
@@ -153,7 +267,7 @@ export default function HomePage() {
           <Layout.Section>
             <Banner
               title={saveMessage.message}
-              // tone={saveMessage.type}
+              tone={saveMessage.type === "success" ? "success" : "critical"}
               onDismiss={() => setSaveMessage(null)}
             />
           </Layout.Section>
@@ -172,29 +286,6 @@ export default function HomePage() {
         {/* Quick Stats */}
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 3, md: 3 }} gap="400">
-            {/* <Card padding="400">
-              <BlockStack gap="200">
-                <InlineStack align="space-between">
-                  <Text as="span" variant="headingSm">
-                    Global Rules
-                  </Text>
-                  <Badge tone={stats.globalEnabled ? "success" : "warning"}>
-                    {stats.globalEnabled ? "Enabled" : "Disabled"}
-                  </Badge>
-                </InlineStack>
-                <Text as="h2" variant="headingMd" fontWeight="bold">
-                  {stats.globalEnabled ? "ON" : "OFF"}
-                </Text>
-                <Text as="p" tone="subdued">
-                  Applied to all products
-                </Text>
-                {stats.lastUpdated && (
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    Last updated: {formatDate(stats.lastUpdated)}
-                  </Text>
-                )}
-              </BlockStack>
-            </Card> */}
             <Card padding="400">
               {isLoading ? (
                 <CardLoader />
@@ -226,22 +317,6 @@ export default function HomePage() {
               )}
             </Card>
 
-            {/* <Card padding="400">
-              <BlockStack gap="200">
-                <InlineStack align="space-between">
-                  <Text as="span" variant="headingSm">
-                    Custom Products
-                  </Text>
-                  <Icon source={ProductIcon} tone="base" />
-                </InlineStack>
-                <Text as="h2" variant="headingXl" fontWeight="bold">
-                  {stats.customProducts}
-                </Text>
-                <Text as="p" tone="subdued">
-                  Sample-enabled products
-                </Text>
-              </BlockStack>
-            </Card> */}
             <Card padding="400">
               {isLoading ? (
                 <CardLoader />
@@ -259,7 +334,7 @@ export default function HomePage() {
                   </Text>
 
                   <Text as="p" tone="subdued">
-                    Custom products(Here you set sample price by your choice)
+                    Custom products (Here you set sample price by your choice)
                   </Text>
                 </BlockStack>
               )}
@@ -287,23 +362,6 @@ export default function HomePage() {
                 </BlockStack>
               )}
             </Card>
-
-            {/* <Card padding="400">
-              <BlockStack gap="200">
-                <InlineStack align="space-between">
-                  <Text as="span" variant="headingSm">
-                    Overrides
-                  </Text>
-                  <Icon source={CursorIcon} tone="base" />
-                </InlineStack>
-                <Text as="h2" variant="headingXl" fontWeight="bold">
-                  {stats.overrides}
-                </Text>
-                <Text as="p" tone="subdued">
-                  Custom product rules
-                </Text>
-              </BlockStack>
-            </Card> */}
           </InlineGrid>
         </Layout.Section>
 
@@ -317,10 +375,6 @@ export default function HomePage() {
             <InlineGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="400">
               <Card padding="400">
                 <BlockStack gap="300">
-                  <InlineStack align="center">
-                    {/* <Icon source={GlobeIcon} tone="primary" /> */}
-                    {/* <Badge tone="info">Global</Badge> */}
-                  </InlineStack>
                   <Text as="h3" alignment="center" variant="headingMd">
                     All Product Settings
                   </Text>
@@ -342,10 +396,6 @@ export default function HomePage() {
 
               <Card padding="400">
                 <BlockStack gap="300">
-                  <InlineStack align="space-between">
-                    {/* <Icon source={SettingsIcon} tone="primary" /> */}
-                    {/* <Badge>Default</Badge> */}
-                  </InlineStack>
                   <Text as="h3" alignment="center" variant="headingMd">
                     Create Products With Your Price Choice
                   </Text>
@@ -365,27 +415,129 @@ export default function HomePage() {
 
               <Card padding="400">
                 <BlockStack gap="300">
-                  <InlineStack align="space-between">
-                    {/* <Icon source={ProductIcon} tone="primary" /> */}
-                    {/* <Badge tone="attention">Per Product</Badge> */}
-                  </InlineStack>
                   <Text as="h3" alignment="center" variant="headingMd">
-                    Check Orders 
+                    Check Orders
                   </Text>
                   <Text as="p" tone="subdued">
-                    Check all sample products order, with thie status
+                    Check all sample products order, with their status
                   </Text>
                   <Button
                     variant="primary"
                     tone="success"
                     onClick={() => router.push("/products/orders")}
                   >
-                    Check orders{" "}
+                    Check orders
                   </Button>
                 </BlockStack>
               </Card>
             </InlineGrid>
           </BlockStack>
+        </Layout.Section>
+
+        {/* ---------------- SUMMARY CARDS ---------------- */}
+        <Layout.Section>
+          {loading ? (
+            <InlineGrid columns={3} gap="400">
+              {[1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <BlockStack gap="400">
+                    <SkeletonDisplayText size="small" />
+                    <SkeletonBodyText lines={2} />
+                    <SkeletonDisplayText size="medium" />
+                    <SkeletonBodyText lines={1} />
+                  </BlockStack>
+                </Card>
+              ))}
+            </InlineGrid>
+          ) : (
+            <InlineGrid columns={3} gap="400">
+              <Card>
+                <BlockStack gap="200">
+                  <Text variant="headingMd" as="h3">
+                    Abandoned Checkouts
+                  </Text>
+
+                  <Text tone="subdued" as="p">
+                    Customers started checkout but didn&apos;t complete.
+                  </Text>
+
+                  <InlineGrid columns="1fr auto" gap="200" alignItems="end">
+                    <Text variant="heading2xl" tone="critical" as="p">
+                      {stats.abandoned}
+                    </Text>
+                    <Badge tone="info">Checkouts</Badge>
+                  </InlineGrid>
+
+                  {renderTrendIndicator(trends.abandoned)}
+                  <Button
+                    variant="primary"
+                    tone="success"
+                    onClick={() => router.push("/products/orders")}
+                  >
+                    Check orders
+                  </Button>
+                </BlockStack>
+              </Card>
+
+              <Card padding="400">
+                <BlockStack gap="200">
+                  <Text variant="headingMd" as="h3">
+                    Completed Samples
+                  </Text>
+                  <Text tone="subdued" as="p">
+                    Orders created when customers complete checkout with sample
+                    products.
+                  </Text>
+
+                  <InlineGrid columns="1fr auto" gap="200" alignItems="end">
+                    <Text variant="heading2xl" tone="success" as="p">
+                      {stats.completed}
+               
+                    </Text>
+                    <Badge tone="attention">Completed</Badge>
+                  </InlineGrid>
+
+                  {renderTrendIndicator(trends.completed)}
+                  <Button
+                    variant="primary"
+                    tone="success"
+                    onClick={() => router.push("/products/orders")}
+                  >
+                    Check orders
+                  </Button>
+                </BlockStack>
+              </Card>
+
+              <Card padding="400">
+                <BlockStack gap="200">
+                  <Text variant="headingMd" as="h3">
+                    Total Customers
+                  </Text>
+                  <Text tone="subdued" as="p">
+                    Users who interacted with the app.You Can check that manually
+                  </Text>
+
+                  <InlineGrid columns="1fr auto" gap="200" alignItems="end">
+                    <Text variant="heading2xl" as="p">
+                      {stats.totalCustomers}
+                      
+                    </Text>
+                    <Badge tone="success">All users</Badge>
+                  </InlineGrid>
+
+                  {renderTrendIndicator(trends.customers)}
+                  <Button
+                    variant="primary"
+                    tone="success"
+                    onClick={() => router.push("/products/orders")}
+                  >
+                    Check orders
+                  </Button>
+                </BlockStack>
+                
+              </Card>
+            </InlineGrid>
+          )}
         </Layout.Section>
 
         {/* Configuration Status */}
@@ -396,68 +548,52 @@ export default function HomePage() {
                 <Text variant="headingMd" as="h3">
                   Current Configuration
                 </Text>
-                {/* <Button
-                  variant="primary"
-                  tone="success"
-                  onClick={() => router.push("/settings")}
-                >
-                  Edit All Settings
-                </Button> */}
               </InlineStack>
 
-              <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-                <Box
-                  padding="400"
-                  background="bg-surface-secondary"
-                  borderRadius="200"
-                >
-                  <BlockStack gap="300">
-                    <Text variant="headingMd" alignment="center" as="h4">
-                      Global Settings
-                    </Text>
-                    {/* <Badge tone={stats.globalEnabled ? "success" : "warning"}>
-                        {stats.globalEnabled ? "Active" : "Inactive"}
-                      </Badge> */}
-
-                    {/* <Text as="p" tone="subdued">
-                      Global rules are currently disabled. Enable them to
-                      configure settings.
-                    </Text> */}
-                    <List type="bullet">
-                      <List.Item>
-                        <InlineStack gap="200">
-                          <Text as="span">Unlimited Sample quantity limit</Text>
-                        </InlineStack>
-                      </List.Item>
-                      <List.Item>
-                        <InlineStack gap="200">
-                          <Text as="span">Manually Set Sample price</Text>
-                        </InlineStack>
-                      </List.Item>
-                      <List.Item>
-                        <InlineStack gap="200">
-                          <Text as="span">Enable or Disable setting </Text>
-                        </InlineStack>
-                      </List.Item>
-
-                      {/* <InlineStack gap="200">
-                            <Text as="span">Customer eligibility:</Text>
-                          </InlineStack> */}
-                    </List>
-
+              {/* <InlineGrid columns={{ xs: 1, md: 2 }} gap="400"> */}
+              <Box
+                padding="400"
+                background="bg-surface-secondary"
+                borderRadius="200"
+              >
+                <BlockStack gap="300">
+                  <Text variant="headingMd" alignment="center" as="h4">
+                    Global Settings
+                  </Text>
+                  <List type="bullet">
+                    <List.Item>
+                      <InlineStack gap="200">
+                        <Text as="span">Unlimited Sample quantity limit</Text>
+                      </InlineStack>
+                    </List.Item>
+                    <List.Item>
+                      <InlineStack gap="200">
+                        <Text as="span">Manually Set Sample price</Text>
+                      </InlineStack>
+                    </List.Item>
+                    <List.Item>
+                      <InlineStack gap="200">
+                        <Text as="span">Enable or Disable setting </Text>
+                      </InlineStack>
+                    </List.Item>
+                  </List>
+                  <InlineStack>
                     <Button
                       variant="primary"
                       tone="success"
                       loading={isLoading}
                       disabled={stats.globalEnabled}
-                      onClick={() => router.push("/products/product-settings/enable")}
+                      onClick={() =>
+                        router.push("/products/product-settings/enable")
+                      }
                     >
                       {stats.globalEnabled ? "Enabled" : "Enable"}
                     </Button>
-                  </BlockStack>
-                </Box>
+                  </InlineStack>
+                </BlockStack>
+              </Box>
 
-                <Box
+              {/* <Box
                   padding="400"
                   background="bg-surface-secondary"
                   borderRadius="200"
@@ -468,13 +604,13 @@ export default function HomePage() {
                         Custom Products
                       </Text>
                     </InlineStack>
-                      <List type="bullet">
-                        <List.Item>
-                          Individual pricing rules ({stats.overrides} overrides)
-                        </List.Item>
-                        <List.Item>Variant-level control</List.Item>
-                        <List.Item>Advanced inventory tracking</List.Item>
-                      </List>
+                    <List type="bullet">
+                      <List.Item>
+                        Individual pricing rules ({stats.overrides} overrides)
+                      </List.Item>
+                      <List.Item>Variant-level control</List.Item>
+                      <List.Item>Advanced inventory tracking</List.Item>
+                    </List>
                  
                     <Button
                       variant="primary"
@@ -486,8 +622,41 @@ export default function HomePage() {
                         : "Create custom products →"}
                     </Button>
                   </BlockStack>
-                </Box>
-              </InlineGrid>
+                </Box> */}
+              {/* </InlineGrid> */}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="300">
+              <Text variant="headingMd" as="h2">
+                Top 5 Sample Products
+              </Text>
+
+              {topProducts.length > 0 ? (
+                <DataTable
+                  columnContentTypes={["text", "numeric", "numeric"]}
+                  headings={["Product Name", "Times Ordered", "Revenue"]}
+                  rows={topProducts.map((p) => [
+                    p.title,
+                    p.sold,
+                    `$${p.revenue.toFixed(2)}`,
+                  ])}
+                  footerContent={`Total Orders: ${topProducts.reduce(
+                    (sum, p) => sum + p.sold,
+                    0,
+                  )}`}
+                />
+              ) : (
+                <EmptyState heading="No product data yet" image="" fullWidth>
+                  <Text as="p" tone="subdued">
+                    Sample products will appear here once customers start
+                    ordering them.
+                  </Text>
+                </EmptyState>
+              )}
             </BlockStack>
           </Card>
         </Layout.Section>
@@ -511,6 +680,520 @@ export default function HomePage() {
     </Page>
   );
 }
+
+// "use client";
+
+// import React, { useEffect, useState } from "react";
+// import {
+//   Card,
+//   Layout,
+//   Page,
+//   Text,
+//   Box,
+//   Banner,
+//   List,
+//   BlockStack,
+//   InlineGrid,
+//   Badge,
+//   Divider,
+//   InlineStack,
+//   Button,
+//   Icon,
+//   Tag,
+//   Spinner,
+// } from "@shopify/polaris";
+// import { useAppBridge } from "@shopify/app-bridge-react";
+
+// import {
+//   SettingsIcon,
+//   ProductIcon,
+//   GlobeIcon,
+//   CursorIcon,
+// } from "@shopify/polaris-icons";
+// import { useRouter } from "next/navigation";
+
+// interface Stats {
+//   globalEnabled: boolean;
+//   customProducts: number;
+//   overrides: number;
+//   lastUpdated: string | null;
+// }
+
+// // Add interface for detailed settings
+// interface DetailedSettings {
+//   quantityLimit?: number;
+//   price?: number;
+//   eligibility?: string;
+// }
+
+// interface SaveMessage {
+//   type: "success" | "error";
+//   message: string;
+// }
+
+// export default function HomePage() {
+//   const [saveMessage, setSaveMessage] = useState<SaveMessage | null>(null);
+//   const [stats, setStats] = useState<Stats>({
+//     globalEnabled: false,
+//     customProducts: 0,
+//     overrides: 0,
+//     lastUpdated: null,
+//   });
+//   const [detailedSettings, setDetailedSettings] = useState<DetailedSettings>(
+//     {},
+//   );
+//   const [isLoading, setIsLoading] = useState(false);
+//   const [shop, setShop] = useState<string | null>(null);
+//   const [error, setError] = useState<string | null>(null);
+//   const router = useRouter();
+//   const app = useAppBridge();
+
+//   useEffect(() => {
+//     const shopFromConfig = (app as any)?.config?.shop;
+//     if (shopFromConfig) {
+//       setShop(shopFromConfig);
+//     } else {
+//       setError("Unable to retrieve shop info from App Bridge config");
+//     }
+//   }, [app]);
+
+//   useEffect(() => {
+//     if (shop) {
+//       refreshStats();
+//       fetchDetailedSettings();
+//     }
+//   }, [shop]);
+
+//   const refreshStats = async () => {
+//     if (!shop) return;
+
+//     setIsLoading(true);
+
+//     try {
+//       const response = await fetch(`/api/stats?shop=${shop}`);
+
+//       if (!response.ok) throw new Error("Failed");
+
+//       const data = await response.json();
+//       setStats(data);
+//       console.log("Stats data:", data);
+
+//       // setSaveMessage({
+//       //   type: "success",
+//       //   message: "Stats refreshed successfully",
+//       // });
+//     } catch (error) {
+//       console.error("Error refreshing stats:", error);
+//       setSaveMessage({
+//         type: "error",
+//         message: "Failed to refresh stats",
+//       });
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+
+//   const fetchDetailedSettings = async () => {
+//     if (!shop) return;
+
+//     try {
+//       const response = await fetch(`/api/settings?shop=${shop}`);
+//       if (response.ok) {
+//         const data = await response.json();
+//         setDetailedSettings(data);
+//       }
+//     } catch (error) {
+//       console.error("Error fetching detailed settings:", error);
+//     }
+//   };
+
+//   const formatDate = (dateString: string | null) => {
+//     if (!dateString) return "Never";
+//     return new Date(dateString).toLocaleDateString("en-US", {
+//       year: "numeric",
+//       month: "short",
+//       day: "numeric",
+//       hour: "2-digit",
+//       minute: "2-digit",
+//     });
+//   };
+//   const CardLoader = () => (
+//     <Box padding="400" minHeight="120">
+//       <InlineStack align="center">
+//         <Spinner accessibilityLabel="Loading" size="small" />
+//       </InlineStack>
+//     </Box>
+//   );
+
+//   return (
+//     <Page
+//       title="Sample Products Manager"
+//       subtitle="Control how customers purchase samples across your store"
+//     >
+//       <Layout>
+//         {/* Notification Banner */}
+//         {saveMessage && (
+//           <Layout.Section>
+//             <Banner
+//               title={saveMessage.message}
+//               // tone={saveMessage.type}
+//               onDismiss={() => setSaveMessage(null)}
+//             />
+//           </Layout.Section>
+//         )}
+
+//         {/* Welcome Banner */}
+//         <Layout.Section>
+//           <Banner title="Welcome to Sample Products Pro" tone="success">
+//             <p>
+//               Get started by configuring your sample settings or creating custom
+//               sample products.
+//             </p>
+//           </Banner>
+//         </Layout.Section>
+
+//         {/* Quick Stats */}
+//         <Layout.Section>
+//           <InlineGrid columns={{ xs: 1, sm: 3, md: 3 }} gap="400">
+//             {/* <Card padding="400">
+//               <BlockStack gap="200">
+//                 <InlineStack align="space-between">
+//                   <Text as="span" variant="headingSm">
+//                     Global Rules
+//                   </Text>
+//                   <Badge tone={stats.globalEnabled ? "success" : "warning"}>
+//                     {stats.globalEnabled ? "Enabled" : "Disabled"}
+//                   </Badge>
+//                 </InlineStack>
+//                 <Text as="h2" variant="headingMd" fontWeight="bold">
+//                   {stats.globalEnabled ? "ON" : "OFF"}
+//                 </Text>
+//                 <Text as="p" tone="subdued">
+//                   Applied to all products
+//                 </Text>
+//                 {stats.lastUpdated && (
+//                   <Text as="p" variant="bodySm" tone="subdued">
+//                     Last updated: {formatDate(stats.lastUpdated)}
+//                   </Text>
+//                 )}
+//               </BlockStack>
+//             </Card> */}
+//             <Card padding="400">
+//               {isLoading ? (
+//                 <CardLoader />
+//               ) : (
+//                 <BlockStack gap="200">
+//                   <InlineStack align="space-between">
+//                     <Text as="span" variant="headingSm">
+//                       All Product Settings{" "}
+//                     </Text>
+//                     <Badge tone={stats.globalEnabled ? "success" : "warning"}>
+//                       {stats.globalEnabled ? "Enabled" : "Disabled"}
+//                     </Badge>
+//                   </InlineStack>
+
+//                   <Text as="h2" variant="headingMd" fontWeight="bold">
+//                     {stats.globalEnabled ? "ON" : "OFF"}
+//                   </Text>
+
+//                   <Text as="p" tone="subdued">
+//                     Applied to all products
+//                   </Text>
+
+//                   {stats.lastUpdated && (
+//                     <Text as="p" variant="bodySm" tone="subdued">
+//                       Last updated: {formatDate(stats.lastUpdated)}
+//                     </Text>
+//                   )}
+//                 </BlockStack>
+//               )}
+//             </Card>
+
+//             {/* <Card padding="400">
+//               <BlockStack gap="200">
+//                 <InlineStack align="space-between">
+//                   <Text as="span" variant="headingSm">
+//                     Custom Products
+//                   </Text>
+//                   <Icon source={ProductIcon} tone="base" />
+//                 </InlineStack>
+//                 <Text as="h2" variant="headingXl" fontWeight="bold">
+//                   {stats.customProducts}
+//                 </Text>
+//                 <Text as="p" tone="subdued">
+//                   Sample-enabled products
+//                 </Text>
+//               </BlockStack>
+//             </Card> */}
+//             <Card padding="400">
+//               {isLoading ? (
+//                 <CardLoader />
+//               ) : (
+//                 <BlockStack gap="200">
+//                   <InlineStack align="space-between">
+//                     <Text as="span" variant="headingSm">
+//                       Custom Products
+//                     </Text>
+//                     <Icon source={ProductIcon} />
+//                   </InlineStack>
+
+//                   <Text as="h2" variant="headingXl" fontWeight="bold">
+//                     {stats.customProducts}
+//                   </Text>
+
+//                   <Text as="p" tone="subdued">
+//                     Custom products(Here you set sample price by your choice)
+//                   </Text>
+//                 </BlockStack>
+//               )}
+//             </Card>
+
+//             <Card padding="400">
+//               {isLoading ? (
+//                 <CardLoader />
+//               ) : (
+//                 <BlockStack gap="200">
+//                   <InlineStack align="space-between">
+//                     <Text as="span" variant="headingSm">
+//                       Overrides
+//                     </Text>
+//                     <Icon source={CursorIcon} />
+//                   </InlineStack>
+
+//                   <Text as="h2" variant="headingXl" fontWeight="bold">
+//                     {stats.overrides}
+//                   </Text>
+
+//                   <Text as="p" tone="subdued">
+//                     Custom product rules
+//                   </Text>
+//                 </BlockStack>
+//               )}
+//             </Card>
+
+//             {/* <Card padding="400">
+//               <BlockStack gap="200">
+//                 <InlineStack align="space-between">
+//                   <Text as="span" variant="headingSm">
+//                     Overrides
+//                   </Text>
+//                   <Icon source={CursorIcon} tone="base" />
+//                 </InlineStack>
+//                 <Text as="h2" variant="headingXl" fontWeight="bold">
+//                   {stats.overrides}
+//                 </Text>
+//                 <Text as="p" tone="subdued">
+//                   Custom product rules
+//                 </Text>
+//               </BlockStack>
+//             </Card> */}
+//           </InlineGrid>
+//         </Layout.Section>
+
+//         {/* Feature Cards */}
+//         <Layout.Section>
+//           <BlockStack gap="400">
+//             <Text variant="headingMd" as="h3">
+//               Features & Capabilities
+//             </Text>
+
+//             <InlineGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="400">
+//               <Card padding="400">
+//                 <BlockStack gap="300">
+//                   <InlineStack align="center">
+//                     {/* <Icon source={GlobeIcon} tone="primary" /> */}
+//                     {/* <Badge tone="info">Global</Badge> */}
+//                   </InlineStack>
+//                   <Text as="h3" alignment="center" variant="headingMd">
+//                     All Product Settings
+//                   </Text>
+//                   <Text as="p" tone="subdued">
+//                     Apply sample settings across all products instantly with
+//                     one-click configuration.
+//                   </Text>
+//                   <Button
+//                     variant="primary"
+//                     tone="success"
+//                     onClick={() =>
+//                       router.push("/products/product-settings/enable")
+//                     }
+//                   >
+//                     Configure
+//                   </Button>
+//                 </BlockStack>
+//               </Card>
+
+//               <Card padding="400">
+//                 <BlockStack gap="300">
+//                   <InlineStack align="space-between">
+//                     {/* <Icon source={SettingsIcon} tone="primary" /> */}
+//                     {/* <Badge>Default</Badge> */}
+//                   </InlineStack>
+//                   <Text as="h3" alignment="center" variant="headingMd">
+//                     Create Products With Your Price Choice
+//                   </Text>
+//                   <Text as="p" tone="subdued">
+//                     Set baseline sample rules that apply when global rules are
+//                     enabled.
+//                   </Text>
+//                   <Button
+//                     variant="primary"
+//                     tone="success"
+//                     onClick={() => router.push("/products/create")}
+//                   >
+//                     Create Products
+//                   </Button>
+//                 </BlockStack>
+//               </Card>
+
+//               <Card padding="400">
+//                 <BlockStack gap="300">
+//                   <InlineStack align="space-between">
+//                     {/* <Icon source={ProductIcon} tone="primary" /> */}
+//                     {/* <Badge tone="attention">Per Product</Badge> */}
+//                   </InlineStack>
+//                   <Text as="h3" alignment="center" variant="headingMd">
+//                     Check Orders
+//                   </Text>
+//                   <Text as="p" tone="subdued">
+//                     Check all sample products order, with thie status
+//                   </Text>
+//                   <Button
+//                     variant="primary"
+//                     tone="success"
+//                     onClick={() => router.push("/products/orders")}
+//                   >
+//                     Check orders{" "}
+//                   </Button>
+//                 </BlockStack>
+//               </Card>
+//             </InlineGrid>
+//           </BlockStack>
+//         </Layout.Section>
+
+//         {/* Configuration Status */}
+//         <Layout.Section>
+//           <Card padding="500">
+//             <BlockStack gap="400">
+//               <InlineStack align="space-between">
+//                 <Text variant="headingMd" as="h3">
+//                   Current Configuration
+//                 </Text>
+//                 {/* <Button
+//                   variant="primary"
+//                   tone="success"
+//                   onClick={() => router.push("/settings")}
+//                 >
+//                   Edit All Settings
+//                 </Button> */}
+//               </InlineStack>
+
+//               <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+//                 <Box
+//                   padding="400"
+//                   background="bg-surface-secondary"
+//                   borderRadius="200"
+//                 >
+//                   <BlockStack gap="300">
+//                     <Text variant="headingMd" alignment="center" as="h4">
+//                       Global Settings
+//                     </Text>
+//                     {/* <Badge tone={stats.globalEnabled ? "success" : "warning"}>
+//                         {stats.globalEnabled ? "Active" : "Inactive"}
+//                       </Badge> */}
+
+//                     {/* <Text as="p" tone="subdued">
+//                       Global rules are currently disabled. Enable them to
+//                       configure settings.
+//                     </Text> */}
+//                     <List type="bullet">
+//                       <List.Item>
+//                         <InlineStack gap="200">
+//                           <Text as="span">Unlimited Sample quantity limit</Text>
+//                         </InlineStack>
+//                       </List.Item>
+//                       <List.Item>
+//                         <InlineStack gap="200">
+//                           <Text as="span">Manually Set Sample price</Text>
+//                         </InlineStack>
+//                       </List.Item>
+//                       <List.Item>
+//                         <InlineStack gap="200">
+//                           <Text as="span">Enable or Disable setting </Text>
+//                         </InlineStack>
+//                       </List.Item>
+
+//                       {/* <InlineStack gap="200">
+//                             <Text as="span">Customer eligibility:</Text>
+//                           </InlineStack> */}
+//                     </List>
+
+//                     <Button
+//                       variant="primary"
+//                       tone="success"
+//                       loading={isLoading}
+//                       disabled={stats.globalEnabled}
+//                       onClick={() => router.push("/products/product-settings/enable")}
+//                     >
+//                       {stats.globalEnabled ? "Enabled" : "Enable"}
+//                     </Button>
+//                   </BlockStack>
+//                 </Box>
+
+//                 <Box
+//                   padding="400"
+//                   background="bg-surface-secondary"
+//                   borderRadius="200"
+//                 >
+//                   <BlockStack gap="300">
+//                     <InlineStack align="center">
+//                       <Text variant="headingSm" as="h4">
+//                         Custom Products
+//                       </Text>
+//                     </InlineStack>
+//                       <List type="bullet">
+//                         <List.Item>
+//                           Individual pricing rules ({stats.overrides} overrides)
+//                         </List.Item>
+//                         <List.Item>Variant-level control</List.Item>
+//                         <List.Item>Advanced inventory tracking</List.Item>
+//                       </List>
+
+//                     <Button
+//                       variant="primary"
+//                       tone="success"
+//                       onClick={() => router.push("/products")}
+//                     >
+//                       {stats.customProducts > 0
+//                         ? "View all custom products"
+//                         : "Create custom products →"}
+//                     </Button>
+//                   </BlockStack>
+//                 </Box>
+//               </InlineGrid>
+//             </BlockStack>
+//           </Card>
+//         </Layout.Section>
+
+//         {/* Help Section */}
+//         <Layout.Section>
+//           <Box padding="400" background="bg-surface-info" borderRadius="200">
+//             <InlineStack align="space-between" wrap={false}>
+//               <BlockStack>
+//                 <Text variant="headingMd" as="h3">
+//                   Need help getting started?
+//                 </Text>
+//                 <Text as="p" tone="subdued">
+//                   Check out our documentation or contact support for assistance.
+//                 </Text>
+//               </BlockStack>
+//             </InlineStack>
+//           </Box>
+//         </Layout.Section>
+//       </Layout>
+//     </Page>
+//   );
+// }
 // 'use client';
 
 // import React, { useState } from 'react';

@@ -1,143 +1,3 @@
-// "use client";
-
-// import React, { useState } from "react";
-// import {
-//   Card,
-//   Layout,
-//   Page,
-//   Text,
-//   Box,
-//   Banner,
-//   List,
-//   BlockStack,
-//   InlineGrid,
-//   Badge,
-//   Divider,
-//   InlineStack,
-//   Button,
-// } from "@shopify/polaris";
-// import { useAppBridge } from "@shopify/app-bridge-react";
-
-// import { useEffect } from "react";
-// export default function settings() {
-//   const [saveMessage, setSaveMessage] = useState<{
-//     type: "success" | "error";
-//     message: string;
-//   } | null>(null);
-//   const [isInstalling, setIsInstalling] = useState(false);
-//   const [shop, setShop] = useState<string | null>(null);
-//   const [error, setError] = useState<string | null>(null);
-
-//   const storeName = shop?.replace(".myshopify.com", "");
-// const themeEditorUrl = storeName
-//   ? `https://admin.shopify.com/store/${storeName}/themes/current/editor`
-//   : undefined;
-//   const app = useAppBridge();
-
-//   const installScriptTag = async () => {
-//     try {
-//       setIsInstalling(true);
-
-//       const shop = window.shopify?.config?.shop;
-
-//       if (!shop) {
-//         throw new Error("Shop not found");
-//       }
-
-//       const res = await fetch("/api/script-tag", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({ shop }),
-//       });
-
-//       const data = await res.json();
-
-//       if (!res.ok) {
-//         throw new Error(data?.error || "Failed to install script");
-//       }
-
-//       setSaveMessage({
-//         type: "success",
-//         message: "Storefront script installed successfully 🎉",
-//       });
-//     } catch (error: any) {
-//       setSaveMessage({
-//         type: "error",
-//         message: error.message || "Failed to install script",
-//       });
-//     } finally {
-//       setIsInstalling(false);
-//     }
-//   };
-
-//    useEffect(() => {
-//       if (!app) return;
-
-//       const shopFromConfig = (app as any)?.config?.shop;
-
-//       if (shopFromConfig) {
-//         setShop(shopFromConfig);
-//         setError(null);
-//       } else {
-//         setShop(null);
-//         setError("Unable to retrieve shop info. Please reload the app.");
-//       }
-//     }, [app]);
-//   return (
-//     <Page>
-//       <Layout>
-//         {saveMessage && (
-//           <Layout.Section>
-//             <Banner
-//               title={saveMessage.message}
-//               onDismiss={() => setSaveMessage(null)}
-//             />
-//           </Layout.Section>
-//         )}
-
-//         <Layout.Section>
-//           <Card>
-//             <BlockStack gap="400">
-//               <Text variant="headingMd" alignment="center" as="h3">
-//                 Theme Settings
-//               </Text>
-//               <Text as="p" alignment="center" variant="bodyMd">
-//                 Button labels, colors, and tones will reflect on the storefront
-//                 wherever the sample purchase option is enabled.
-//               </Text>
-//               <Text as="p" variant="bodyMd" alignment="center" >
-//                 These settings ensure visual consistency with your brand.{"  "}By clicking on this sample-product into your live theme
-
-//               </Text>
-
-//               <Button
-//                 size="large"
-//                 variant="primary"
-//                 tone="success"
-//                 loading={isInstalling}
-//                 onClick={installScriptTag}
-//               >
-//                 {isInstalling ? "Installing…" : "Enable Extension"}
-//               </Button>
-//   <Button
-//     size="large"
-//     variant="secondary"
-//     external
-//     url={themeEditorUrl}
-//   >
-//     Open Theme Editor
-//   </Button>
-
-//             </BlockStack>
-
-//           </Card>
-
-//         </Layout.Section>
-//       </Layout>
-//     </Page>
-//   );
-// }
-
 "use client";
 
 import React, { useState } from "react";
@@ -181,27 +41,27 @@ export default function Settings() {
     try {
       setIsInstalling(true);
       setSaveMessage(null);
-  
+
       const shop = (app as any)?.config?.shop;
-  
+
       console.log("🟢 Sending shop:", shop);
-  
+
       if (!shop) {
         throw new Error("Shop not found");
       }
-  
+
       const res = await fetch("/api/script-tag", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ shop }),
       });
-  
+
       const data = await res.json();
-  
+
       if (!res.ok) {
         throw new Error(data?.error || "Failed to install script");
       }
-  
+
       setSaveMessage({
         type: "success",
         message: "🎉 Storefront script installed successfully!",
@@ -255,25 +115,6 @@ export default function Settings() {
           </Layout.Section>
         )}
 
-        {/* Shop Info Banner */}
-        {/* {shop && (
-          <Layout.Section>
-            <CalloutCard
-              title={`Connected to ${storeName}`}
-              illustration="https://cdn.shopify.com/shopifycloud/web/assets/v1/815375b3.svg"
-              primaryAction={{
-                content: "View Store",
-                url: `https://${shop}`,
-                external: true,
-              }}
-            >
-              <Text as="p" variant="bodyMd">
-                Your theme settings will be applied to this store.
-              </Text>
-            </CalloutCard>
-          </Layout.Section>
-        )} */}
-
         {/* Error State */}
         {error && (
           <Layout.Section>
@@ -298,30 +139,11 @@ export default function Settings() {
         {/* Instructions Section */}
         <Layout.Section>
           <Card roundedAbove="sm">
-            {/* <Box padding="400" background="bg-surface-info" borderRadius="200">
-              <BlockStack gap="200">
-                <Text variant="headingSm" as="h4">
-                  Pro Tip
-                </Text>
-                <Text as="p" variant="bodyMd">
-                  Always preview changes in your theme editor before publishing.
-                  This ensures your storefront maintains a professional
-                  appearance.
-                </Text>
-              </BlockStack>
-            </Box> */}
             <BlockStack gap="100">
-              {/* <Text
-                variant="headingLg"
-                fontWeight="bold"
-                as="h3"
-                alignment="center"
-              >
-                Setup Instructions
+              <Text as="p" variant="headingMd" alignment="center">
+                {" "}
+                Follow These Steps to use sample app
               </Text>
-
-              <Divider /> */}
-          <Text as="p" variant="headingMd" alignment="center" > Follow These Steps to use sample app</Text>
 
               <InlineGrid columns={{ xs: 1, md: 3 }} gap="400">
                 <Box padding="400">
@@ -344,8 +166,8 @@ export default function Settings() {
                       tone="subdued"
                       alignment="center"
                     >
-                 Click &quot;Install Storefront Script&quot; to add required
-                 functionality to your theme.
+                      Click &quot;Install Storefront Script&quot; to add
+                      required functionality to your theme.
                     </Text>
                   </BlockStack>
                 </Box>
@@ -545,18 +367,11 @@ export default function Settings() {
                 >
                   Open Theme Editor
                 </Button>
-
-                {/* {shop && (
-                  <Text as="p" variant="bodySm" tone="subdued" alignment="center">
-                    Will open in a new tab
-                  </Text>
-                )} */}
               </BlockStack>
             </Card>
           </InlineGrid>
         </Layout.Section>
 
-        {/* Footer Note */}
         <Layout.Section>
           <Box padding="400">
             <Text as="p" variant="bodySm" tone="subdued" alignment="center">
