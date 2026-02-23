@@ -181,40 +181,40 @@ export default function Settings() {
     try {
       setIsInstalling(true);
       setSaveMessage(null);
-
-      const shop = window.shopify?.config?.shop;
-
+  
+      const shop = (app as any)?.config?.shop;
+  
+      console.log("🟢 Sending shop:", shop);
+  
       if (!shop) {
         throw new Error("Shop not found");
       }
-
+  
       const res = await fetch("/api/script-tag", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ shop }),
       });
-
+  
       const data = await res.json();
-
+  
       if (!res.ok) {
         throw new Error(data?.error || "Failed to install script");
       }
-
+  
       setSaveMessage({
         type: "success",
-        message:
-          "🎉 Storefront script installed successfully! Your theme is now enhanced with new features.",
+        message: "🎉 Storefront script installed successfully!",
       });
     } catch (error: any) {
       setSaveMessage({
         type: "error",
-        message: `❌ ${error.message || "Failed to install script. Please try again."}`,
+        message: error.message,
       });
     } finally {
       setIsInstalling(false);
     }
   };
-
   useEffect(() => {
     if (!app) return;
     setIsLoading(true);
