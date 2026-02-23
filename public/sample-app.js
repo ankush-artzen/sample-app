@@ -346,7 +346,7 @@ async function validateCustomer() {
   }
 
   const res = await fetch(
-    `${APP_BASE}/api/sample/status?email=${encodeURIComponent(email)}`
+    `${APP_BASE}/api/sample/status?email=${encodeURIComponent(email)}`,
   );
 
   const status = await res.json();
@@ -355,7 +355,7 @@ async function validateCustomer() {
     alert(
       status.reason === "LIMIT_REACHED"
         ? "Sample limit reached for this email"
-        : "You are blocked from ordering samples"
+        : "You are blocked from ordering samples",
     );
     return;
   }
@@ -413,9 +413,9 @@ function clearErrors() {
 //         </div>
 //         <p class="item-title">No samples selected</p>
 //         <p class="per_col-size">Choose a sample to continue</p>
-//          <a 
-//         href="${STORE_BASE}/collections/all"; 
-//         class="btn-primary" 
+//          <a
+//         href="${STORE_BASE}/collections/all";
+//         class="btn-primary"
 //         style="margin-top:12px; display:inline-block; text-decoration:none;"
 //       >
 //         Browse Products
@@ -570,7 +570,6 @@ async function renderProductSelection() {
         cart = cart.filter((c) => c.variantId !== item.variantId);
         updateCartAndSync(cart);
         renderSelectedSamples();
-
       };
 
       container.appendChild(card);
@@ -938,6 +937,8 @@ async function checkout() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        shop: Shopify.shop,
+
         variantIds: cart.map((item) => item.variantId),
         customerEmail,
       }),
